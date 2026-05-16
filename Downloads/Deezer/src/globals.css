@@ -1,0 +1,161 @@
+/* ============================================================
+   DEEZER — CSS Variables + Reset global
+   Généré depuis design-tokens.js
+   ============================================================ */
+
+:root {
+  /* Backgrounds */
+  --bg-base:     #000000;
+  --bg-card:     #111111;
+  --bg-elevated: #1A1A1A;
+  --bg-pressed:  #2A2A2A;
+  --bg-player:   #0D0D0D;
+
+  /* Text */
+  --text-primary:   #FFFFFF;
+  --text-secondary: #B3B3B3;
+  --text-tertiary:  #666666;
+  --text-accent:    #A238FF;
+
+  /* Accent */
+  --accent:       #A238FF;
+  --accent-dark:  #7B1FD4;
+  --accent-alpha: rgba(162, 56, 255, 0.15);
+
+  /* Gradients */
+  --gradient-flow: linear-gradient(135deg, #A238FF 0%, #FF5C8A 100%);
+
+  /* Borders */
+  --border-subtle:  rgba(255, 255, 255, 0.08);
+  --border-default: rgba(255, 255, 255, 0.12);
+  --border-strong:  rgba(255, 255, 255, 0.20);
+  --border-accent:  #A238FF;
+
+  /* UI */
+  --progress-bg:   #333333;
+  --progress-fill: #FFFFFF;
+  --separator:     rgba(255, 255, 255, 0.08);
+
+  /* BTS */
+  --bts-card-bg:      #111111;
+  --bts-card-border:  #A238FF;
+  --bts-icon:         #A238FF;
+  --bts-overlay:      rgba(0, 0, 0, 0.92);
+  --bts-badge-bg:     #A238FF;
+  --bts-story-bar:    rgba(255, 255, 255, 0.3);
+  --bts-story-fill:   #FFFFFF;
+  --bts-focus-bg:     #2A2A2A;
+
+  /* Typography */
+  --font-primary: "Deezer Sans", "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+
+  /* Spacing */
+  --page-h:       16px;
+  --section-gap:  24px;
+  --item-gap:     12px;
+  --card-padding: 12px;
+
+  /* Sizes */
+  --navbar-h:       83px;
+  --miniplayer-h:   64px;
+  --safe-top:       44px;
+  --safe-bottom:    34px;
+
+  /* Radius */
+  --r-card:      8px;
+  --r-card-lg:   12px;
+  --r-pill:      24px;
+  --r-badge:     4px;
+  --r-progress:  2px;
+
+  /* Transitions */
+  --t-fast:    150ms ease;
+  --t-default: 250ms ease;
+  --t-slow:    400ms ease;
+  --t-spring:  300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Z-index */
+  --z-miniplayer: 100;
+  --z-navbar:     100;
+  --z-overlay:    200;
+  --z-modal:      300;
+}
+
+/* ── Reset ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-primary);
+  font-size: 16px;
+  line-height: 1.5;
+  overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar invisible */
+::-webkit-scrollbar { display: none; }
+* { scrollbar-width: none; }
+
+/* ── Layout wrapper ── */
+.app-wrapper {
+  max-width: 430px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  height: 100dvh;
+  padding-top: env(safe-area-inset-top, var(--safe-top));
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-base);
+}
+
+/* Zone scrollable centrale */
+.scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* padding bas = MiniPlayer + NavBar + safe area bottom */
+  padding-bottom: calc(var(--miniplayer-h) + var(--navbar-h) + env(safe-area-inset-bottom, var(--safe-bottom)));
+}
+
+/* Page padding horizontal */
+.page-content {
+  padding: 0 var(--page-h);
+}
+
+/* ── Utilitaires typographie ── */
+.section-title {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text-primary);
+}
+
+.track-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.artist-name {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.supertitle {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}

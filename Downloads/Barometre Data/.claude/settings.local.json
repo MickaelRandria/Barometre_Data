@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m http.server 8000)",
+      "Bash(python3)",
+      "Read(//c/Users/vrymi/Downloads/**)",
+      "Bash(pdftotext \"Livre Blanc _ Data & Saisonnalité \\(2\\).pdf\" -)"
+    ]
+  }
+}

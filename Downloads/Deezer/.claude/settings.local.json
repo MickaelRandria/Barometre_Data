@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run:*)",
+      "Bash(git -C \"C:/Users/vrymi\" add \"Downloads/Deezer/\")"
+    ]
+  }
+}

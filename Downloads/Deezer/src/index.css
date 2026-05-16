@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@theme {
+  --color-deezer-purple: #A238FF;
+  --color-deezer-dark: #111111;
+  --color-deezer-grey: #1a1a1a;
+  --color-deezer-light-grey: #b3b3b3;
+}
+
+body {
+  background-color: black;
+  color: white;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Hide scrollbar for horizontal scrolling elements */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

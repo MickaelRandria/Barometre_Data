@@ -949,20 +949,22 @@ svg.radar { width: 100%; height: auto; max-height: 320px; }
 }
 
 /* ---- Onglet Livre Blanc mis en valeur ---- */
-.top-tab-livre {
-  color: var(--ink) !important;
-  background: var(--neon-soft);
-  border-radius: var(--r-sm);
+.top-tab-livre:not(.active) {
+  background: var(--neon);
+  color: var(--ink);
   font-weight: 700;
+  opacity: .75;
 }
 
-.top-tab-livre:hover {
-  background: var(--neon) !important;
+.top-tab-livre:not(.active):hover {
+  opacity: 1;
+  color: var(--ink);
 }
 
 .top-tab-livre.active {
   background: var(--neon) !important;
   color: var(--ink) !important;
+  opacity: 1;
 }
 
 .nav-icon-livre {

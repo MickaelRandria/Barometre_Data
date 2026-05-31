@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import './index.css';
 import LivreBlanc from './LivreBlanc.jsx';
+import { createPortal } from 'react-dom';
 
 /* ---------- ICONS (SVG inline) ---------- */
 const Icon = {
@@ -72,6 +73,19 @@ const Icon = {
       <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
     </svg>
   ),
+  menu: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+      <line x1="3" y1="6" x2="21" y2="6" />
+      <line x1="3" y1="12" x2="21" y2="12" />
+      <line x1="3" y1="18" x2="21" y2="18" />
+    </svg>
+  ),
+  close: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  ),
 };
 
 const TONES = ['chaleureux', 'dynamique', 'urgent', 'inspirationnel', 'rassurant', 'promotionnel', 'sobre'];
@@ -116,6 +130,64 @@ function useScrollProgress() {
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
+}
+
+/* ---------- MOBILE HEADER + DRAWER ---------- */
+const NAV_ITEMS = [
+  { id: 'livre', icon: Icon.book, label: 'Livre Blanc', accent: true },
+  { id: 'overview', icon: Icon.grid, label: "Vue d'ensemble" },
+  { id: 'analyses', icon: Icon.chart, label: 'Analyses' },
+  { id: 'brief', icon: Icon.doc, label: 'Brief' },
+  { id: 'weather', icon: Icon.weather, label: 'Contexte' },
+];
+
+function MobileHeader({ section, setSection }) {
+  const [open, setOpen] = useState(false);
+
+  const go = (id) => { setSection(id); setOpen(false); };
+
+  const drawer = open ? createPortal(
+    <div className="mob-drawer-overlay" onClick={() => setOpen(false)}>
+      <nav className="mob-drawer" onClick={(e) => e.stopPropagation()}>
+        <div className="mob-drawer-top">
+          <div className="logo" style={{ margin: 0 }}>B<span style={{ color: '#fff' }}>·</span>D</div>
+          <button type="button" className="mob-close-btn" onClick={() => setOpen(false)} aria-label="Fermer">
+            <Icon.close />
+          </button>
+        </div>
+        <ul className="mob-nav-list">
+          {NAV_ITEMS.map((it) => (
+            <li key={it.id}>
+              <button
+                type="button"
+                className={`mob-nav-item ${section === it.id ? 'active' : ''} ${it.accent ? 'accent' : ''}`}
+                onClick={() => go(it.id)}
+              >
+                <span className="mob-nav-icon"><it.icon /></span>
+                <span>{it.label}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    </div>,
+    document.body,
+  ) : null;
+
+  return (
+    <>
+      <header className="mob-header">
+        <div className="logo" style={{ margin: 0 }}>B<span style={{ color: '#fff' }}>·</span>D</div>
+        <span className="mob-header-title">
+          {NAV_ITEMS.find((n) => n.id === section)?.label ?? 'Baromètre Data'}
+        </span>
+        <button type="button" className="mob-burger-btn" onClick={() => setOpen(true)} aria-label="Menu">
+          <Icon.menu />
+        </button>
+      </header>
+      {drawer}
+    </>
+  );
 }
 
 /* ---------- SIDEBAR ---------- */
@@ -661,7 +733,7 @@ const DEFAULT_BRIEF = {
 
 function App() {
   useScrollProgress();
-  const [section, setSection] = useState('overview');
+  const [section, setSection] = useState('livre');
   const [brief, setBrief] = useState(DEFAULT_BRIEF);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -701,6 +773,7 @@ function App() {
 
   return (
     <div className="app">
+      <MobileHeader section={section} setSection={setSection} />
       <Sidebar section={section} setSection={setSection} />
       <main className="main-content">
         <TopBar section={section} setSection={setSection} />
@@ -725,7 +798,7 @@ function App() {
         </div>
 
         {section === 'livre' ? (
-          <LivreBlanc />
+          <LivreBlanc setSection={setSection} />
         ) : (
         <div className="bento view-fade" key={section + (result ? '-r' : '-e')}>
           {(section === 'brief' || !result) && (

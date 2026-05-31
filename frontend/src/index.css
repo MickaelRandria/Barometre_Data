@@ -496,15 +496,35 @@ svg.radar { width: 100%; height: auto; max-height: 320px; }
   h1.title { font-size: 40px; }
   .analysis-results .adj-grid { grid-template-columns: 1fr; }
 }
+/* Mobile header — hidden on desktop */
+.mob-header { display: none; }
+
 @media (max-width: 720px) {
   .app { grid-template-columns: 1fr; }
   .sidebar { display: none; }
-  .main-content { padding: 18px; }
-  .top-tabs .top-tab:not(.active) { display: none; }
-  .hamburger { display: inline-flex; }
+  .mob-header {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+    height: 56px; padding: 0 16px;
+    background: var(--bg); border-bottom: 1px solid var(--line);
+    backdrop-filter: blur(8px);
+  }
+  .mob-header-title {
+    font-size: 14px; font-weight: 600; color: var(--ink);
+    flex: 1; text-align: center;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .mob-burger-btn {
+    width: 40px; height: 40px; border-radius: 12px;
+    background: var(--ink); border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--neon); flex: 0 0 auto;
+  }
+  .mob-burger-btn svg { display: block; width: 20px; height: 20px; }
+
+  .main-content { padding: 74px 18px 80px; }
+  .topbar { display: none; }
   .head-actions { display: none; }
-  .topbar { flex-wrap: wrap; }
-  .team-cluster { display: none; }
   .brief-grid, .variants-grid { grid-template-columns: 1fr; }
   .brief-submit-row { align-items: stretch; }
   .brief-submit-row .pill-btn { width: 100%; }
@@ -512,6 +532,55 @@ svg.radar { width: 100%; height: auto; max-height: 320px; }
   .cta { grid-template-columns: 1fr; }
   .foot { flex-direction: column; align-items: flex-start; gap: 6px; }
 }
+
+/* Mobile drawer overlay */
+.mob-drawer-overlay {
+  position: fixed; inset: 0; z-index: 300;
+  background: rgba(14,17,22,0.55);
+  backdrop-filter: blur(4px);
+  animation: mob-fade-in 0.18s ease;
+}
+@keyframes mob-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+.mob-drawer {
+  position: absolute; top: 0; right: 0;
+  width: min(320px, 90vw); height: 100vh;
+  background: var(--card);
+  box-shadow: -12px 0 40px rgba(14,17,22,0.18);
+  display: flex; flex-direction: column;
+  animation: mob-slide-in 0.22s cubic-bezier(.2,.8,.3,1);
+  overflow-y: auto;
+}
+@keyframes mob-slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+.mob-drawer-top {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px; border-bottom: 1px solid var(--line);
+}
+.mob-close-btn {
+  width: 40px; height: 40px; border-radius: 12px;
+  background: var(--line-2); border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--ink);
+}
+.mob-close-btn svg { display: block; width: 18px; height: 18px; }
+
+.mob-nav-list {
+  padding: 12px 12px 32px; display: flex; flex-direction: column; gap: 4px;
+}
+.mob-nav-item {
+  width: 100%; display: flex; align-items: center; gap: 14px;
+  padding: 14px 16px; border-radius: 14px; border: none;
+  background: transparent; color: var(--ink); font-family: inherit;
+  font-size: 15px; font-weight: 600; cursor: pointer; text-align: left;
+  transition: all 0.15s ease;
+}
+.mob-nav-item:hover { background: var(--line-2); }
+.mob-nav-item.active { background: var(--ink); color: #fff; }
+.mob-nav-item.accent:not(.active) { background: var(--neon); color: var(--ink); }
+.mob-nav-item.accent:not(.active):hover { background: var(--neon-soft); }
+.mob-nav-icon { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.mob-nav-icon svg { display: block; width: 20px; height: 20px; }
 
 /* ============================================================
    LIVRE BLANC
@@ -982,6 +1051,32 @@ svg.radar { width: 100%; height: auto; max-height: 320px; }
   border-radius: 50%;
   background: var(--neon);
 }
+
+/* ---- CTA Baromètre (dans la nav) ---- */
+.lb-goto-app {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; padding: 9px 12px; margin-top: 14px;
+  border-radius: var(--r-sm); border: none;
+  background: var(--ink); color: var(--neon);
+  font-family: inherit; font-size: 12px; font-weight: 700;
+  cursor: pointer; text-transform: uppercase; letter-spacing: 0.07em;
+  transition: all 0.18s ease;
+}
+.lb-goto-app:hover { background: var(--neon); color: var(--ink); }
+.lb-goto-app svg { flex: 0 0 auto; }
+
+/* ---- Fin du Livre Blanc ---- */
+.lb-end-actions {
+  display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 24px;
+}
+.lb-try-app-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 14px 24px; border-radius: 999px; border: 2px solid var(--ink);
+  background: transparent; color: var(--ink);
+  font-family: inherit; font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: all 0.2s ease; line-height: 1;
+}
+.lb-try-app-btn:hover { background: var(--ink); color: var(--neon); transform: translateY(-2px); box-shadow: var(--shadow-hover); }
 
 /* ---- Mobile ---- */
 @media (max-width: 720px) {

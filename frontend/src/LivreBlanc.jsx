@@ -124,7 +124,7 @@ function Chapter({ chapter, chapterRef }) {
 }
 
 /* ---- Main component ---- */
-export default function LivreBlanc() {
+export default function LivreBlanc({ setSection }) {
   const [activeId, setActiveId] = useState(CHAPTERS[0].id);
   const [scrollPct, setScrollPct] = useState(0);
   const chapterRefs = useRef({});
@@ -174,6 +174,17 @@ export default function LivreBlanc() {
           <div className="lb-progress-track">
             <div className="lb-progress-fill" style={{ width: `${scrollPct}%` }} />
           </div>
+          {setSection && (
+            <button type="button" className="lb-goto-app" onClick={() => setSection('overview')}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="14" height="14">
+                <rect x="3" y="3" width="7" height="7" rx="1.5" />
+                <rect x="14" y="3" width="7" height="7" rx="1.5" />
+                <rect x="3" y="14" width="7" height="7" rx="1.5" />
+                <rect x="14" y="14" width="7" height="7" rx="1.5" />
+              </svg>
+              Accéder au Baromètre
+            </button>
+          )}
         </div>
         <ul className="lb-nav-list">
           {CHAPTERS.map((ch) => (
@@ -229,18 +240,28 @@ export default function LivreBlanc() {
           </div>
           <p>Livre Blanc V4 — Marketing prédictif & agents IA</p>
           <p className="lb-end-sub">Mickael Randrianandraina · Prototype M2 Data Marketing & IA · Baromètre Data</p>
-          <a
-            href="/livre-blanc-v4.pdf"
-            download="Livre Blanc V4 - Marketing Predictif Agents IA.pdf"
-            className="lb-download-btn"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="18" height="18">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-            Télécharger le PDF complet
-          </a>
+          <div className="lb-end-actions">
+            <a
+              href="/livre-blanc-v4.pdf"
+              download="Livre Blanc V4 - Marketing Predictif Agents IA.pdf"
+              className="lb-download-btn"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="18" height="18">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Télécharger le PDF complet
+            </a>
+            {setSection && (
+              <button type="button" className="lb-try-app-btn" onClick={() => setSection('brief')}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="18" height="18">
+                  <path d="M7 17L17 7" /><path d="M9 7h8v8" />
+                </svg>
+                Tester le Baromètre Data
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

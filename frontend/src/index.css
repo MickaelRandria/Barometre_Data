@@ -769,9 +769,76 @@ svg.radar { width: 100%; height: auto; max-height: 320px; }
   word-break: break-word;
 }
 
-.lb-mobile-nav {
-  display: none;
+.lb-mobile-nav { display: none; }
+
+/* ---- Pill flottant navigation chapitre (mobile uniquement) ---- */
+.lb-chap-pill { display: none; }
+
+/* ---- Bottom sheet chapitres ---- */
+.lb-sheet-backdrop {
+  position: fixed; inset: 0; z-index: 280;
+  background: rgba(14,17,22,0.52);
+  backdrop-filter: blur(6px);
+  display: flex; flex-direction: column; justify-content: flex-end;
+  animation: lb-back-in 0.18s ease;
 }
+@keyframes lb-back-in { from { opacity: 0; } to { opacity: 1; } }
+
+.lb-sheet {
+  background: var(--card);
+  border-radius: 24px 24px 0 0;
+  max-height: 72vh;
+  display: flex; flex-direction: column;
+  animation: lb-sheet-up 0.28s cubic-bezier(.2,.85,.3,1);
+  overflow: hidden;
+}
+@keyframes lb-sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+.lb-sheet-handle {
+  width: 36px; height: 4px; background: var(--line);
+  border-radius: 999px; margin: 12px auto 4px; flex-shrink: 0;
+}
+
+.lb-sheet-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 20px 14px; border-bottom: 1px solid var(--line); flex-shrink: 0;
+}
+.lb-sheet-title { font-size: 16px; font-weight: 700; color: var(--ink); }
+.lb-sheet-meta {
+  font-size: 11px; color: var(--muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.lb-sheet-list {
+  overflow-y: auto; padding: 8px 12px 32px; flex: 1;
+  -webkit-overflow-scrolling: touch;
+}
+
+.lb-sheet-item {
+  width: 100%; display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; border-radius: 14px; border: none;
+  background: transparent; color: var(--ink); font-family: inherit;
+  font-size: 14px; font-weight: 500; cursor: pointer; text-align: left;
+  transition: background 0.12s;
+}
+.lb-sheet-item:active { background: var(--line-2); }
+.lb-sheet-item.active {
+  background: var(--neon-soft); font-weight: 700; color: var(--ink);
+}
+.lb-sheet-item.active .lb-sheet-num { background: var(--neon); }
+
+.lb-sheet-num {
+  min-width: 28px; height: 28px; background: var(--line-2);
+  border-radius: 8px; display: flex; align-items: center; justify-content: center;
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700;
+  flex-shrink: 0; transition: background 0.12s;
+}
+.lb-sheet-dot {
+  min-width: 8px; height: 8px; border-radius: 50%;
+  background: var(--muted-2); margin-left: 10px; flex-shrink: 0;
+}
+.lb-sheet-label { flex: 1; line-height: 1.35; }
+.lb-sheet-check { flex-shrink: 0; color: var(--ink); }
 
 /* ---- Chapter ---- */
 .lb-chapter {
@@ -1201,23 +1268,37 @@ svg.radar { width: 100%; height: auto; max-height: 320px; }
 
 /* ---- Livre Blanc Mobile ---- */
 @media (max-width: 720px) {
-  .lb-layout {
-    grid-template-columns: 1fr;
-  }
+  .lb-layout { grid-template-columns: 1fr; }
   .lb-nav { display: none; }
 
-  .lb-mobile-nav {
-    display: block;
-    margin-bottom: 20px;
+  /* Pill flottant */
+  .lb-chap-pill {
+    display: flex; align-items: center; gap: 10px;
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    z-index: 150;
+    background: var(--ink); color: #fff;
+    padding: 11px 16px 11px 12px;
+    border-radius: 999px; border: none;
+    font-family: inherit; cursor: pointer;
+    box-shadow: 0 8px 28px rgba(14,17,22,0.28), 0 2px 6px rgba(14,17,22,0.14);
+    white-space: nowrap; max-width: calc(100vw - 40px);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
   }
-  .lb-mobile-nav select {
-    width: 100%; padding: 12px 14px;
-    border: 1px solid var(--line); border-radius: var(--radius-md);
-    background: var(--card); font-size: 14px; font-family: inherit;
-    color: var(--ink); appearance: auto;
+  .lb-chap-pill:active { transform: translateX(-50%) scale(0.97); }
+  .lb-chap-pill-num {
+    background: var(--neon); color: var(--ink);
+    min-width: 26px; height: 26px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700;
+    flex-shrink: 0;
   }
+  .lb-chap-pill-label {
+    font-size: 13px; font-weight: 600;
+    overflow: hidden; text-overflow: ellipsis; max-width: 180px;
+  }
+  .lb-chap-pill-chevron { opacity: 0.5; flex-shrink: 0; }
 
-  .lb-content { padding: 0 0 60px; }
+  .lb-content { padding: 0 0 100px; }
 
   .lb-chapter { margin-bottom: 48px; scroll-margin-top: 72px; }
 

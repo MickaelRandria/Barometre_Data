@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { CHAPTERS, READING_TIME_MIN } from './data/livreblanc.js';
 
 /* ---- Block renderer ---- */
@@ -123,10 +124,50 @@ function Chapter({ chapter, chapterRef }) {
   );
 }
 
+/* ---- Mobile chapter bottom sheet ---- */
+function ChapterSheet({ activeId, onSelect, onClose }) {
+  return createPortal(
+    <div className="lb-sheet-backdrop" onClick={onClose}>
+      <div className="lb-sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="lb-sheet-handle" />
+        <div className="lb-sheet-header">
+          <span className="lb-sheet-title">Chapitres</span>
+          <span className="lb-sheet-meta">~{READING_TIME_MIN} min de lecture</span>
+        </div>
+        <ul className="lb-sheet-list">
+          {CHAPTERS.map((ch) => (
+            <li key={ch.id}>
+              <button
+                type="button"
+                className={`lb-sheet-item ${activeId === ch.id ? 'active' : ''}`}
+                onClick={() => onSelect(ch.id)}
+              >
+                {ch.num ? (
+                  <span className="lb-sheet-num">{ch.num}</span>
+                ) : (
+                  <span className="lb-sheet-dot" />
+                )}
+                <span className="lb-sheet-label">{ch.label}</span>
+                {activeId === ch.id && (
+                  <svg className="lb-sheet-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16">
+                    <path d="M5 12l5 5 9-11" />
+                  </svg>
+                )}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 /* ---- Main component ---- */
 export default function LivreBlanc({ setSection }) {
   const [activeId, setActiveId] = useState(CHAPTERS[0].id);
   const [scrollPct, setScrollPct] = useState(0);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const chapterRefs = useRef({});
 
   /* window scroll → progress bar + active chapter */
@@ -211,22 +252,41 @@ export default function LivreBlanc({ setSection }) {
         </ul>
       </nav>
 
+      {/* ---- Pill flottant chapitre (mobile uniquement) ---- */}
+      {(() => {
+        const activeCh = CHAPTERS.find((c) => c.id === activeId) || CHAPTERS[0];
+        return (
+          <button
+            type="button"
+            className="lb-chap-pill"
+            onClick={() => setSheetOpen(true)}
+            aria-label="Changer de chapitre"
+          >
+            {activeCh.num ? (
+              <span className="lb-chap-pill-num">{activeCh.num}</span>
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14" style={{ opacity: 0.6 }}>
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+              </svg>
+            )}
+            <span className="lb-chap-pill-label">{activeCh.label}</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16" className="lb-chap-pill-chevron">
+              <polyline points="18 15 12 9 6 15" />
+            </svg>
+          </button>
+        );
+      })()}
+
+      {sheetOpen && (
+        <ChapterSheet
+          activeId={activeId}
+          onSelect={(id) => { scrollToChapter(id); setSheetOpen(false); }}
+          onClose={() => setSheetOpen(false)}
+        />
+      )}
+
       {/* ---- CONTENT ---- */}
       <div className="lb-content">
-        {/* mobile select */}
-        <div className="lb-mobile-nav">
-          <select
-            value={activeId}
-            onChange={(e) => scrollToChapter(e.target.value)}
-            aria-label="Aller au chapitre"
-          >
-            {CHAPTERS.map((ch) => (
-              <option key={ch.id} value={ch.id}>
-                {ch.num ? `Partie ${ch.num} — ` : ''}{ch.label}
-              </option>
-            ))}
-          </select>
-        </div>
 
         {CHAPTERS.map((ch) => (
           <Chapter

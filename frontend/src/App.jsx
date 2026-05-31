@@ -134,7 +134,7 @@ function Sidebar({ section, setSection }) {
         <button
           key={it.id}
           type="button"
-          className={`nav-icon ${section === it.id ? 'active' : ''}`}
+          className={`nav-icon ${section === it.id ? 'active' : ''} ${it.id === 'livre' ? 'nav-icon-livre' : ''}`}
           onClick={() => setSection(it.id)}
           aria-label={it.label}
           title={it.label}
@@ -167,7 +167,7 @@ function TopBar({ section, setSection }) {
             type="button"
             role="tab"
             aria-selected={section === t.id}
-            className={`top-tab ${section === t.id ? 'active' : ''}`}
+            className={`top-tab ${section === t.id ? 'active' : ''} ${t.id === 'livre' ? 'top-tab-livre' : ''}`}
             onClick={() => setSection(t.id)}
           >
             <t.icon />

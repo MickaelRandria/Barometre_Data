@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import './index.css';
+import LivreBlanc from './LivreBlanc.jsx';
 
 /* ---------- ICONS (SVG inline) ---------- */
 const Icon = {
@@ -65,6 +66,12 @@ const Icon = {
       <path d="M5.6 5.6l12.8 12.8" />
     </svg>
   ),
+  book: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+    </svg>
+  ),
 };
 
 const TONES = ['chaleureux', 'dynamique', 'urgent', 'inspirationnel', 'rassurant', 'promotionnel', 'sobre'];
@@ -118,6 +125,7 @@ function Sidebar({ section, setSection }) {
     { id: 'analyses', icon: Icon.chart, label: 'Analyses' },
     { id: 'brief', icon: Icon.doc, label: 'Brief' },
     { id: 'weather', icon: Icon.weather, label: 'Contexte' },
+    { id: 'livre', icon: Icon.book, label: 'Livre Blanc' },
   ];
   return (
     <aside className="sidebar" aria-label="Navigation">
@@ -148,6 +156,7 @@ function TopBar({ section, setSection }) {
     { id: 'overview', label: "Vue d'ensemble", icon: Icon.grid },
     { id: 'analyses', label: 'Analyses', icon: Icon.chart },
     { id: 'brief', label: 'Brief', icon: Icon.doc },
+    { id: 'livre', label: 'Livre Blanc', icon: Icon.book },
   ];
   return (
     <div className="topbar">
@@ -715,6 +724,9 @@ function App() {
           </div>
         </div>
 
+        {section === 'livre' ? (
+          <LivreBlanc />
+        ) : (
         <div className="bento view-fade" key={section + (result ? '-r' : '-e')}>
           {(section === 'brief' || !result) && (
             <BriefForm
@@ -747,6 +759,7 @@ function App() {
             </>
           )}
         </div>
+        )}
 
         <footer className="foot">
           <span>Baromètre Data — Agent Marketing Contextuel v2.0</span>

@@ -513,10 +513,11 @@ svg.radar { width: 100%; height: auto; max-height: 320px; }
 
 @media (max-width: 720px) {
   /* Layout */
-  .app { grid-template-columns: 1fr; }
+  .app { grid-template-columns: 1fr; overflow-x: hidden; }
+  html, body { overflow-x: hidden; }
   .sidebar { display: none; }
   .topbar { display: none; }
-  .main-content { padding: 74px 16px 80px; }
+  .main-content { padding: 77px 16px 80px; min-width: 0; }
 
   /* Mobile header */
   .mob-header {
@@ -631,6 +632,8 @@ svg.radar { width: 100%; height: auto; max-height: 320px; }
   align-items: start;
   background: var(--bg);
   min-height: 60vh;
+  min-width: 0;
+  width: 100%;
 }
 
 /* ---- Nav ---- */
@@ -761,6 +764,9 @@ svg.radar { width: 100%; height: auto; max-height: 320px; }
 /* ---- Content ---- */
 .lb-content {
   padding: 0 40px 80px 40px;
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .lb-mobile-nav {
@@ -771,6 +777,7 @@ svg.radar { width: 100%; height: auto; max-height: 320px; }
 .lb-chapter {
   margin-bottom: 72px;
   scroll-margin-top: 24px;
+  min-width: 0;
 }
 
 .lb-chapter-hero {
@@ -825,6 +832,9 @@ svg.radar { width: 100%; height: auto; max-height: 320px; }
 /* ---- Body content ---- */
 .lb-chapter-body {
   width: 100%;
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .lb-p {
@@ -832,6 +842,8 @@ svg.radar { width: 100%; height: auto; max-height: 320px; }
   line-height: 1.75;
   color: var(--ink-2);
   margin: 0 0 16px;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .lb-h3 {
@@ -853,6 +865,8 @@ svg.radar { width: 100%; height: auto; max-height: 320px; }
   font-style: italic;
   color: var(--ink);
   line-height: 1.65;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .lb-callout {
@@ -861,6 +875,8 @@ svg.radar { width: 100%; height: auto; max-height: 320px; }
   padding: 18px 22px;
   border-radius: var(--radius-md);
   margin: 20px 0;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .lb-callout-label {
@@ -1132,6 +1148,29 @@ svg.radar { width: 100%; height: auto; max-height: 320px; }
   height: 4px;
   border-radius: 50%;
   background: var(--neon);
+}
+
+/* ---- Barre de progression lecture mobile ---- */
+.lb-mob-progress {
+  display: none;
+}
+@media (max-width: 720px) {
+  .lb-mob-progress {
+    display: block;
+    position: fixed;
+    top: 56px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--line);
+    z-index: 199;
+  }
+  .lb-mob-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--neon), #B5DA2E);
+    border-radius: 0 999px 999px 0;
+    transition: width 0.15s ease;
+  }
 }
 
 /* ---- CTA Baromètre (dans la nav) ---- */

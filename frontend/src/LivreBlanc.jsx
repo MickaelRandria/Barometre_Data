@@ -166,6 +166,11 @@ export default function LivreBlanc({ setSection }) {
 
   return (
     <div className="lb-layout">
+      {/* ---- Barre de progression mobile (fixed, sous le header) ---- */}
+      <div className="lb-mob-progress" aria-hidden="true">
+        <div className="lb-mob-progress-fill" style={{ width: `${scrollPct}%` }} />
+      </div>
+
       {/* ---- NAV ---- */}
       <nav className="lb-nav" aria-label="Chapitres du livre blanc">
         <div className="lb-nav-header">

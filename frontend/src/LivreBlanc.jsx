@@ -2,6 +2,25 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { CHAPTERS, READING_TIME_MIN } from './data/livreblanc.js';
 
+/* ---- Audio helpers ---- */
+const fmt = (s) => {
+  if (!s || isNaN(s)) return '0:00';
+  const m = Math.floor(s / 60);
+  return `${m}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+};
+
+const PlayIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
+    <polygon points="6 3 20 12 6 21 6 3" />
+  </svg>
+);
+const PauseIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
+    <rect x="6" y="4" width="4" height="16" rx="1.5" />
+    <rect x="14" y="4" width="4" height="16" rx="1.5" />
+  </svg>
+);
+
 /* ---- Block renderer ---- */
 function renderBlock(block, idx) {
   switch (block.type) {
@@ -170,6 +189,29 @@ export default function LivreBlanc({ setSection }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const chapterRefs = useRef({});
 
+  /* Audio state */
+  const audioRef = useRef(null);
+  const [playing, setPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [speed, setSpeed] = useState(1);
+
+  const togglePlay = () => {
+    if (!audioRef.current) return;
+    playing ? audioRef.current.pause() : audioRef.current.play();
+  };
+  const seek = (e, el) => {
+    if (!audioRef.current || !duration) return;
+    const r = Math.max(0, Math.min(1, (e.clientX - el.getBoundingClientRect().left) / el.offsetWidth));
+    audioRef.current.currentTime = r * duration;
+  };
+  const cycleSpeed = () => {
+    const next = speed === 1 ? 1.5 : speed === 1.5 ? 2 : 1;
+    setSpeed(next);
+    if (audioRef.current) audioRef.current.playbackRate = next;
+  };
+  const pct = duration ? (currentTime / duration) * 100 : 0;
+
   /* window scroll → progress bar + active chapter */
   useEffect(() => {
     const onScroll = () => {
@@ -207,6 +249,18 @@ export default function LivreBlanc({ setSection }) {
 
   return (
     <div className="lb-layout">
+      {/* ---- Audio (caché) ---- */}
+      <audio
+        ref={audioRef}
+        src="/podcast-livre-blanc.m4a"
+        preload="metadata"
+        onTimeUpdate={() => setCurrentTime(audioRef.current?.currentTime ?? 0)}
+        onLoadedMetadata={() => setDuration(audioRef.current?.duration ?? 0)}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onEnded={() => setPlaying(false)}
+      />
+
       {/* ---- Barre de progression mobile (fixed, sous le header) ---- */}
       <div className="lb-mob-progress" aria-hidden="true">
         <div className="lb-mob-progress-fill" style={{ width: `${scrollPct}%` }} />
@@ -232,6 +286,21 @@ export default function LivreBlanc({ setSection }) {
             </button>
           )}
         </div>
+        {/* Mini-player nav (desktop) */}
+        <div className="lb-nav-mini-player">
+          <button type="button" className="lb-mini-play" onClick={togglePlay} aria-label={playing ? 'Pause' : 'Lecture'}>
+            {playing ? <PauseIcon /> : <PlayIcon />}
+          </button>
+          <div
+            className="lb-mini-bar"
+            onClick={(e) => seek(e, e.currentTarget)}
+            title="Cliquer pour avancer"
+          >
+            <div className="lb-mini-fill" style={{ width: `${pct}%` }} />
+          </div>
+          <span className="lb-mini-time">{fmt(currentTime)}</span>
+        </div>
+
         <ul className="lb-nav-list">
           {CHAPTERS.map((ch) => (
             <li key={ch.id}>
@@ -287,6 +356,58 @@ export default function LivreBlanc({ setSection }) {
 
       {/* ---- CONTENT ---- */}
       <div className="lb-content">
+        {/* ---- Carte podcast hero ---- */}
+        <div className="lb-podcast-card">
+          <div className="lb-podcast-top">
+            <div className="lb-podcast-meta">
+              <span className="lb-podcast-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="11" height="11">
+                  <circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3" />
+                  <line x1="12" y1="3" x2="12" y2="1" /><line x1="12" y1="23" x2="12" y2="21" />
+                </svg>
+                PODCAST
+              </span>
+              <h2 className="lb-podcast-title">Marketing prédictif & agents IA</h2>
+              <p className="lb-podcast-author">Livre Blanc V4 · Mickael Randrianandraina</p>
+            </div>
+            {duration > 0 && (
+              <span className="lb-podcast-dur">{fmt(duration)}</span>
+            )}
+          </div>
+
+          <div className="lb-podcast-controls">
+            <button
+              type="button"
+              className={`lb-podcast-play ${playing ? 'playing' : ''}`}
+              onClick={togglePlay}
+              aria-label={playing ? 'Pause' : 'Lecture'}
+            >
+              {playing ? <PauseIcon /> : <PlayIcon />}
+            </button>
+            <div
+              className="lb-podcast-bar"
+              onClick={(e) => seek(e, e.currentTarget)}
+              role="slider"
+              aria-label="Progression"
+              aria-valuenow={Math.round(pct)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            >
+              <div className="lb-podcast-fill" style={{ width: `${pct}%` }} />
+            </div>
+            <span className="lb-podcast-time">{fmt(currentTime)} / {fmt(duration)}</span>
+            <button type="button" className={`lb-podcast-speed ${speed !== 1 ? 'active' : ''}`} onClick={cycleSpeed}>
+              {speed}×
+            </button>
+          </div>
+
+          <p className="lb-podcast-tagline">
+            "Écouter plutôt que lire — même contenu, disponible en podcast"
+          </p>
+        </div>
+
+        {/* Séparateur */}
+        <div className="lb-podcast-sep">— ou parcourir les chapitres —</div>
 
         {CHAPTERS.map((ch) => (
           <Chapter

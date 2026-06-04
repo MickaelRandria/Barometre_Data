@@ -821,21 +821,29 @@ function App() {
 
           {result && section !== 'brief' && (
             <>
-              <HeroScore
-                scores={result.scores}
-                recommendation={result.recommendation}
-                context={result.context}
-                meta={result.meta}
-              />
-              <ContextSignal context={result.context} />
-              <ScoresPanel scores={result.scores} />
-              <RecommendationPanel recommendation={result.recommendation} />
-              <GapPanel gap={result.gap} />
-              <VariantsPanel variants={result.variants} />
-              <ActivationPanel activation={result.activation} />
-              <ABTestPanel abTest={result.abTest} />
-              <GuardrailsPanel guardrails={result.guardrails} />
-              <LearningPanel learning={result.learning} />
+              {/* ── Vue d'ensemble ── */}
+              {section === 'overview' && <>
+                <HeroScore scores={result.scores} recommendation={result.recommendation} context={result.context} meta={result.meta} />
+                <ContextSignal context={result.context} />
+                <ScoresPanel scores={result.scores} />
+                <RecommendationPanel recommendation={result.recommendation} />
+              </>}
+
+              {/* ── Analyses ── */}
+              {section === 'analyses' && <>
+                <GapPanel gap={result.gap} />
+                <VariantsPanel variants={result.variants} />
+                <ABTestPanel abTest={result.abTest} />
+                <LearningPanel learning={result.learning} />
+              </>}
+
+              {/* ── Contexte ── */}
+              {section === 'weather' && <>
+                <ContextSignal context={result.context} />
+                <ActivationPanel activation={result.activation} />
+                <GuardrailsPanel guardrails={result.guardrails} />
+              </>}
+
               <CTAReset onReset={handleReset} />
             </>
           )}

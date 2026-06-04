@@ -376,6 +376,9 @@ function HeroScore({ scores, recommendation, context, meta }) {
           <div className="item">Confiance<b>{scores.confidence}</b></div>
           <div className="item">Action<b>{recommendation.action}</b></div>
           <div className="item">Contexte<b>{context.contextType.label}</b></div>
+          {context.trendsSignal && (
+            <div className="item">Tendance<b>{context.trendsSignal.dominant}</b></div>
+          )}
           <div className="item">Modules<b>{meta.modules}</b></div>
         </div>
       </div>
@@ -405,6 +408,11 @@ function ContextSignal({ context }) {
     { lab: 'Saison', vl: context.season.label, dl: context.isSeasonCoherent ? 'Cohérent' : 'À ajuster' },
     { lab: 'Moment', vl: context.timeOfDay.label, dl: 'Plage active' },
     { lab: 'Contexte', vl: context.contextType.label, dl: (context.contextType.toneMatch || []).slice(0, 2).join(' · ') },
+    ...(context.trendsSignal ? [{
+      lab: 'Tendances',
+      vl: context.trendsSignal.dominant.toUpperCase(),
+      dl: (context.trendsSignal.confidence === 'high' ? '↑ ' : '') + 'live',
+    }] : []),
   ];
   return (
     <section className="card signal col-6 in" style={{ opacity: 1, transform: 'none' }}>

@@ -81,7 +81,16 @@ function detectContextType(weather, season) {
   return CONTEXT_TYPES.NEUTRAL;
 }
 
-export function analyzeContext(weather) {
+function computeTrendsSignal(trends, weather) {
+  const temp = weather?.temperature ?? 15;
+  const dominant = trends.reduce((max, t) => (t.value > max.value ? t : max));
+  const cocooningUp = trends.find((t) => t.keyword === 'cocooning')?.trend === 'up';
+  const sortieUp    = trends.find((t) => t.keyword === 'sortie')?.trend === 'up';
+  const confidence  = (temp < 10 && cocooningUp) || (temp > 20 && sortieUp) ? 'high' : 'medium';
+  return { dominant: dominant.keyword, confidence, keywords: trends };
+}
+
+export function analyzeContext(weather, trends = null) {
   const now = new Date();
   const season = getSeason(now.getMonth());
   const timeOfDay = getTimeOfDay();
@@ -95,6 +104,7 @@ export function analyzeContext(weather) {
   })();
 
   const interpretation = generateInterpretation(contextType, weather, season);
+  const trendsSignal = trends ? computeTrendsSignal(trends, weather) : null;
 
   return {
     weather: {
@@ -115,6 +125,7 @@ export function analyzeContext(weather) {
     },
     isSeasonCoherent,
     interpretation,
+    trendsSignal,
   };
 }
 

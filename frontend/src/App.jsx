@@ -415,7 +415,7 @@ function ContextSignal({ context }) {
     }] : []),
   ];
   return (
-    <section className="card signal col-6 in" style={{ opacity: 1, transform: 'none' }}>
+    <section className="card signal col-12 in" style={{ opacity: 1, transform: 'none' }}>
       <div className="top">
         <div>
           <h3>Signal contextuel</h3>
@@ -449,7 +449,7 @@ function ScoresPanel({ scores }) {
     { key: 'timing', label: 'Timing / Canal', weight: 20 },
   ];
   return (
-    <Card title="Sous-scores" sub="Décomposition du score contextuel" col={6}>
+    <Card title="Sous-scores" sub="Décomposition du score contextuel" col={12}>
       <div className="bar-row">
         {items.map((it) => {
           const v = scores.subscores[it.key] ?? 0;
@@ -475,7 +475,7 @@ function ScoresPanel({ scores }) {
 function RecommendationPanel({ recommendation }) {
   const cls = recommendation.action.toLowerCase().includes('go') ? 'neon' : 'dark';
   return (
-    <Card title="Recommandation" sub="Décision de l'agent" col={6}>
+    <Card title="Recommandation" sub="Décision de l'agent" col={12}>
       <div className="ministats" style={{ gridTemplateColumns: '1fr', marginBottom: 14 }}>
         <div className={`ministat ${cls}`}>
           <span className="lab">Action recommandée</span>
@@ -505,7 +505,7 @@ function RecommendationPanel({ recommendation }) {
 function GapPanel({ gap }) {
   const level = gap.gapLevel === 'none' ? 'Aucun' : gap.gapLevel.charAt(0).toUpperCase() + gap.gapLevel.slice(1);
   return (
-    <Card title="Contextual Gap Detection" sub="Écarts message ↔ contexte" col={6}>
+    <Card title="Contextual Gap Detection" sub="Écarts message ↔ contexte" col={12}>
       <div className={`gap-summary gap-level-${gap.gapLevel}`}>
         <p className="gap-level-label">Niveau : {level}</p>
         <p>{gap.summary}</p>
@@ -558,7 +558,7 @@ function VariantsPanel({ variants }) {
 /* ---------- ACTIVATION ---------- */
 function ActivationPanel({ activation }) {
   return (
-    <Card title="Plan d'activation" sub="Déploiement opérationnel" col={7}>
+    <Card title="Plan d'activation" sub="Déploiement opérationnel" col={12}>
       <div className="ministats">
         <div className="ministat neon">
           <span className="lab">Canal</span>
@@ -601,7 +601,7 @@ function ActivationPanel({ activation }) {
 /* ---------- A/B TEST ---------- */
 function ABTestPanel({ abTest }) {
   return (
-    <Card title="Plan A/B Test" sub="Hypothèse & mesure" col={5}>
+    <Card title="Plan A/B Test" sub="Hypothèse & mesure" col={12}>
       <div className="ab-hypothesis">
         <p><strong>H0 :</strong> {abTest.hypothesis.h0}</p>
         <p><strong>H1 :</strong> {abTest.hypothesis.h1}</p>
@@ -636,7 +636,7 @@ function ABTestPanel({ abTest }) {
 function GuardrailsPanel({ guardrails }) {
   const statusIcon = (s) => s === 'ok' ? <Icon.check /> : s === 'blocked' ? <Icon.ban /> : <Icon.warn />;
   return (
-    <Card title="RGPD & Garde-fous" sub={`Niveau : ${guardrails.riskLevel.label}`} col={6}>
+    <Card title="RGPD & Garde-fous" sub={`Niveau : ${guardrails.riskLevel.label}`} col={12}>
       <p>{guardrails.summary}</p>
       <h4 className="sub-h">Conformité RGPD</h4>
       <div className="checks-list">
@@ -669,7 +669,7 @@ function GuardrailsPanel({ guardrails }) {
 /* ---------- LEARNING ---------- */
 function LearningPanel({ learning }) {
   return (
-    <Card title="Learning Loop" sub="Simulation post-campagne" col={6}>
+    <Card title="Learning Loop" sub="Simulation post-campagne" col={12}>
       <div className="ministats">
         <div className="ministat">
           <span className="lab">Envoyés</span>

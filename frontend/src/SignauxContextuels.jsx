@@ -67,10 +67,14 @@ export default function SignauxContextuels() {
   const fetchWeather = async (c) => {
     setWLoading(true);
     try {
-      const res  = await fetch(`/api/weather/${c.lat}/${c.lon}`);
+      const res  = await fetch(`/api/weather?lat=${c.lat}&lon=${c.lon}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setWeather(data);
-    } catch { setWeather(null); }
+    } catch (err) {
+      console.error('[Signaux] météo error:', err);
+      setWeather(null);
+    }
     setWLoading(false);
   };
 

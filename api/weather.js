@@ -1,11 +1,13 @@
-import { fetchOpenMeteo, getSeasonalMockWeather, setCors } from '../../_weather.js';
+import { fetchOpenMeteo, getSeasonalMockWeather, setCors } from './_weather.js';
 
 export default async function handler(req, res) {
   setCors(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const lat = req.query.lat || req.params?.lat;
-  const lon = req.query.lon || req.params?.lon;
+  const { lat, lon } = req.query;
+  if (!lat || !lon) {
+    return res.status(400).json({ error: 'lat et lon requis' });
+  }
 
   try {
     const weather = await fetchOpenMeteo(lat, lon);

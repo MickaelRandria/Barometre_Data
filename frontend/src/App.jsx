@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import './index.css';
 import LivreBlanc from './LivreBlanc.jsx';
+import SignauxContextuels from './SignauxContextuels.jsx';
 import { createPortal } from 'react-dom';
 
 /* ---------- ICONS (SVG inline) ---------- */
@@ -228,6 +229,7 @@ function TopBar({ section, setSection }) {
     { id: 'overview', label: "Vue d'ensemble", icon: Icon.grid },
     { id: 'analyses', label: 'Analyses', icon: Icon.chart },
     { id: 'brief', label: 'Brief', icon: Icon.doc },
+    { id: 'weather', label: 'Signaux', icon: Icon.weather },
     { id: 'livre', label: 'Livre Blanc', icon: Icon.book },
   ];
   return (
@@ -807,6 +809,8 @@ function App() {
 
         {section === 'livre' ? (
           <LivreBlanc setSection={setSection} />
+        ) : section === 'weather' ? (
+          <SignauxContextuels />
         ) : (
         <div className="bento view-fade" key={section + (result ? '-r' : '-e')}>
           {(section === 'brief' || !result) && (
@@ -835,13 +839,6 @@ function App() {
                 <VariantsPanel variants={result.variants} />
                 <ABTestPanel abTest={result.abTest} />
                 <LearningPanel learning={result.learning} />
-              </>}
-
-              {/* ── Contexte ── */}
-              {section === 'weather' && <>
-                <ContextSignal context={result.context} />
-                <ActivationPanel activation={result.activation} />
-                <GuardrailsPanel guardrails={result.guardrails} />
               </>}
 
               <CTAReset onReset={handleReset} />

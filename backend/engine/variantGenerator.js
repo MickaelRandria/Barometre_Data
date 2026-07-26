@@ -1,167 +1,109 @@
 /**
- * Variant Generator — Module 6
- * Génère 3 variantes de message : standard, contextualisé, agentique optimisé.
+ * Variant Generator - Module 6
+ * Produit des variantes réécrites et sans projection de performance chiffrée.
  */
 
-const TONE_TEMPLATES = {
-  chaleureux: {
-    openers: ['Envie de douceur ?', 'Un moment rien qu\'à vous.', 'Offrez-vous du réconfort.'],
-    closers: ['Profitez de ce moment.', 'Laissez-vous tenter.', 'Vous le méritez.'],
-  },
-  dynamique: {
-    openers: ['C\'est le moment !', 'Ne manquez pas ça.', 'L\'énergie est là !'],
-    closers: ['Foncez !', 'À vous de jouer.', 'Saisissez l\'instant.'],
-  },
-  urgent: {
-    openers: ['Dernières heures !', 'Ne passez pas à côté.', 'Maintenant ou jamais.'],
-    closers: ['Plus que quelques places.', 'Offre limitée.', 'N\'attendez plus.'],
-  },
-  inspirationnel: {
-    openers: ['Et si vous osiez ?', 'Imaginez...', 'Découvrez un nouvel horizon.'],
-    closers: ['Laissez-vous inspirer.', 'L\'aventure commence ici.', 'Explorez sans limites.'],
-  },
-  rassurant: {
-    openers: ['On est là pour vous.', 'En toute sérénité.', 'Faites-vous confiance.'],
-    closers: ['Sans engagement.', 'Satisfaction garantie.', 'On vous accompagne.'],
-  },
-  promotionnel: {
-    openers: ['Offre exclusive !', 'Rien que pour vous.', 'Économisez maintenant.'],
-    closers: ['Code promo inclus.', 'Livraison offerte.', 'Profitez-en vite.'],
-  },
-  sobre: {
-    openers: ['Information importante.', 'À noter.', 'Pour votre information.'],
-    closers: ['Bonne continuation.', 'À bientôt.', 'Cordialement.'],
-  },
-};
+import { detectMessageWeatherContradictions, detectSeasonalProductMismatch } from './weatherConsistency.js';
 
-const CONTEXT_ENRICHMENTS = {
-  cocooning: {
-    ambiance: ['au chaud', 'confortablement installé(e)', 'dans votre cocon'],
-    imagery: ['plaid', 'tasse fumante', 'lumière tamisée', 'soirée au calme'],
-    verbs: ['se lover', 'savourer', 'se détendre', 'profiter'],
-  },
-  energy: {
-    ambiance: ['sous le soleil', 'en plein air', 'dehors'],
-    imagery: ['ciel bleu', 'énergie', 'mouvement', 'liberté'],
-    verbs: ['explorer', 's\'évader', 'bouger', 'découvrir'],
-  },
-  urgency: {
-    ambiance: ['rapidement', 'en un clic', 'sans attendre'],
-    imagery: ['efficacité', 'simplicité', 'gain de temps'],
-    verbs: ['agir', 'commander', 'réserver', 'sécuriser'],
-  },
-  inspiration: {
-    ambiance: ['à votre rythme', 'en toute curiosité', 'librement'],
-    imagery: ['tendances', 'nouveautés', 'exclusivités', 'sélection'],
-    verbs: ['découvrir', 'explorer', 'imaginer', 's\'inspirer'],
-  },
-  neutral: {
-    ambiance: ['aujourd\'hui', 'cette semaine', 'pour vous'],
-    imagery: ['sélection', 'actualités', 'nouveautés'],
-    verbs: ['découvrir', 'profiter', 'explorer'],
-  },
-};
-
-function pickRandom(arr) {
-  return arr[Math.floor(Math.random() * arr.length)];
+function productLabel(product) {
+  return String(product || 'notre sélection').replace(/\s+/g, ' ').trim();
 }
 
-export function generateVariants(context, brief, scores, recommendation) {
-  const contextType = context.contextType.id;
-  const originalMessage = brief.message || '';
-  const product = brief.product || 'notre sélection';
-  const tone = brief.tone || 'sobre';
-  const channel = brief.channel || 'email';
-  const audience = brief.audience || '';
-
-  const toneData = TONE_TEMPLATES[tone] || TONE_TEMPLATES.sobre;
-  const contextData = CONTEXT_ENRICHMENTS[contextType] || CONTEXT_ENRICHMENTS.neutral;
-  const bestTone = context.contextType.toneMatch[0] || tone;
-  const bestToneData = TONE_TEMPLATES[bestTone] || TONE_TEMPLATES.sobre;
-  const bestContextData = contextData;
-
-  const maxLength = getMaxLength(channel);
-
-  const variant1 = {
-    id: 'standard',
-    label: 'Standard (original)',
-    description: 'Votre message tel quel, sans adaptation contextuelle.',
-    message: originalMessage || `${pickRandom(toneData.openers)} Découvrez ${product}. ${pickRandom(toneData.closers)}`,
-    tone,
-    contextAdapted: false,
-    expectedLift: '0% (baseline)',
-    score: scores.subscores.message,
-  };
-
-  const variant2Message = buildContextualizedMessage(originalMessage, product, tone, toneData, contextData, channel);
-  const variant2 = {
-    id: 'contextualized',
-    label: 'Contextualisé',
-    description: `Message adapté au contexte ${context.contextType.label} détecté.`,
-    message: truncate(variant2Message, maxLength),
-    tone,
-    contextAdapted: true,
-    expectedLift: '+8-15% CTR estimé',
-    score: Math.min(100, scores.subscores.message + 12),
-  };
-
-  const variant3Message = buildAgenticMessage(product, bestTone, bestToneData, bestContextData, audience, channel);
-  const variant3 = {
-    id: 'agentic',
-    label: 'Agentique (optimisé)',
-    description: `Message généré par l'agent avec ton ${bestTone} optimal pour le contexte.`,
-    message: truncate(variant3Message, maxLength),
-    tone: bestTone,
-    contextAdapted: true,
-    expectedLift: '+15-30% CTR estimé',
-    score: Math.min(100, scores.subscores.message + 22),
-  };
-
-  return {
-    variants: [variant1, variant2, variant3],
-    bestVariant: 'agentic',
-    contextType: context.contextType.label,
-    reasoning: `Le contexte ${context.contextType.label} favorise un ton ${bestTone}. La variante agentique maximise l'alignement contextuel.`,
-  };
-}
-
-function buildContextualizedMessage(original, product, tone, toneData, contextData, channel) {
-  if (original) {
-    const ambiance = pickRandom(contextData.ambiance);
-    const verb = pickRandom(contextData.verbs);
-    return `${original} — Idéal pour ${verb} ${ambiance}.`;
+function buildContextualizedMessage(context, product, hasCriticalMismatch) {
+  if (hasCriticalMismatch) {
+    return `Découvrez « ${product} ». Cette prise de parole est à programmer lorsque le contexte sera plus adapté.`;
   }
 
-  const opener = pickRandom(toneData.openers);
-  const ambiance = pickRandom(contextData.ambiance);
-  const closer = pickRandom(toneData.closers);
-  return `${opener} ${ambiance}, découvrez ${product}. ${closer}`;
+  if (context.contextType.id === 'cocooning') {
+    return `Découvrez « ${product} », une sélection pensée pour vos moments chez vous.`;
+  }
+  if (context.contextType.id === 'energy') {
+    return `Découvrez « ${product} », une sélection conçue pour accompagner vos envies du moment.`;
+  }
+  return `Découvrez « ${product} », une sélection à explorer selon vos envies.`;
 }
 
-function buildAgenticMessage(product, bestTone, toneData, contextData, audience, channel) {
-  const opener = pickRandom(toneData.openers);
-  const ambiance = pickRandom(contextData.ambiance);
-  const imagery = pickRandom(contextData.imagery);
-  const verb = pickRandom(contextData.verbs);
-  const closer = pickRandom(toneData.closers);
-
-  if (channel === 'sms' || channel === 'push') {
-    return `${opener} ${product} — ${verb} ${ambiance}. ${closer}`;
+function buildAgenticMessage(context, product, hasCriticalMismatch) {
+  if (hasCriticalMismatch) {
+    return `La météo actuelle ne favorise pas « ${product} ». Reportez cette prise de parole et privilégiez une offre adaptée au contexte.`;
   }
 
-  return `${opener} ${ambiance}, c'est le moment de ${verb} ${product}. ${imagery} au rendez-vous. ${closer}`;
+  if (context.contextType.id === 'cocooning') {
+    return `Prenez le temps de découvrir « ${product} ». Une sélection idéale pour une parenthèse de douceur à la maison.`;
+  }
+  if (context.contextType.id === 'energy') {
+    return `Découvrez « ${product} » et choisissez une sélection en accord avec le rythme de votre journée.`;
+  }
+  return `Découvrez « ${product} » et trouvez la sélection qui vous ressemble.`;
 }
 
 function getMaxLength(channel) {
-  switch (channel) {
-    case 'sms': return 160;
-    case 'push': return 120;
-    case 'email': return 500;
-    default: return 300;
-  }
+  if (channel === 'sms') return 160;
+  if (channel === 'push') return 120;
+  if (channel === 'email') return 500;
+  return 300;
 }
 
-function truncate(text, max) {
-  if (text.length <= max) return text;
-  return text.substring(0, max - 3) + '...';
+function truncate(text, maxLength) {
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, Math.max(0, maxLength - 1)).trimEnd()}…`;
+}
+
+export function generateVariants(context, brief, scores, recommendation) {
+  const product = productLabel(brief.product);
+  const originalMessage = String(brief.message || '').trim() || `Découvrez « ${product} ».`;
+  const channel = brief.channel || 'email';
+  const productMismatch = detectSeasonalProductMismatch(product, context, brief.message);
+  const messageContradictions = detectMessageWeatherContradictions(brief.message, context.weather);
+  // Seuls les décalages critiques ou forts justifient de recommander un report
+  // dans la variante : un décalage « moyen » ne doit pas geler la prise de parole.
+  const hasCriticalMismatch = Boolean(
+    (productMismatch && ['critical', 'high'].includes(productMismatch.severity))
+    || messageContradictions.some((c) => ['critical', 'high'].includes(c.severity)),
+  );
+  const contextualized = truncate(buildContextualizedMessage(context, product, hasCriticalMismatch), getMaxLength(channel));
+  const agentic = truncate(buildAgenticMessage(context, product, hasCriticalMismatch), getMaxLength(channel));
+
+  return {
+    variants: [
+      {
+        id: 'standard',
+        label: 'Standard (original)',
+        description: 'Message d’origine, sans adaptation contextuelle.',
+        message: originalMessage,
+        tone: brief.tone || 'sobre',
+        contextAdapted: false,
+        expectedLift: 'Sans projection chiffrée',
+        score: null,
+        scoreBasis: 'Aucun score de variante n’est calculé sans données de campagne mesurées.',
+      },
+      {
+        id: 'contextualized',
+        label: 'Contextualisée',
+        description: hasCriticalMismatch ? 'Réécriture qui retire les affirmations incompatibles avec la météo réelle.' : `Réécriture adaptée au contexte ${context.contextType.label}.`,
+        message: contextualized,
+        tone: context.contextType.toneMatch[0] || brief.tone || 'sobre',
+        contextAdapted: true,
+        expectedLift: 'Hypothèse à tester en A/B',
+        score: null,
+        scoreBasis: 'La pertinence doit être validée par un test avec groupe de contrôle.',
+      },
+      {
+        id: 'agentic',
+        label: 'Agentique',
+        description: hasCriticalMismatch ? 'Réécriture priorisant la cohérence avec la météo et la recommandation de report.' : 'Réécriture complète avec un ton adapté au contexte.',
+        message: agentic,
+        tone: context.contextType.toneMatch[0] || brief.tone || 'sobre',
+        contextAdapted: true,
+        expectedLift: 'Hypothèse à tester en A/B',
+        score: null,
+        scoreBasis: 'La pertinence doit être validée par un test avec groupe de contrôle.',
+      },
+    ],
+    bestVariant: hasCriticalMismatch ? 'agentic' : 'contextualized',
+    contextType: context.contextType.label,
+    reasoning: hasCriticalMismatch
+      ? 'Une contradiction avec la météo réelle a été détectée. Les variantes adaptées retirent cette affirmation et recommandent un report si nécessaire.'
+      : `Le contexte ${context.contextType.label} guide la réécriture. Les résultats doivent être mesurés avant de conclure à un gain.`,
+  };
 }

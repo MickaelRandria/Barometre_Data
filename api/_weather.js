@@ -6,8 +6,10 @@ const WMO_MAP = {
   45: 'brouillard', 48: 'brouillard',
   51: 'pluie', 53: 'pluie', 55: 'pluie',
   61: 'pluie', 63: 'pluie', 65: 'pluie',
-  71: 'neige', 73: 'neige', 75: 'neige',
+  66: 'pluie verglaçante', 67: 'pluie verglaçante',
+  71: 'neige', 73: 'neige', 75: 'neige', 77: 'neige',
   80: 'averses', 81: 'averses', 82: 'averses',
+  85: 'averses de neige', 86: 'averses de neige',
   95: 'orage', 96: 'orage', 99: 'orage',
 };
 
@@ -16,7 +18,7 @@ export async function fetchOpenMeteo(lat, lon) {
     params: {
       latitude: lat,
       longitude: lon,
-      current: 'temperature_2m,apparent_temperature,precipitation,weathercode,windspeed_10m,relativehumidity_2m',
+      current: 'temperature_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,relative_humidity_2m',
       timezone: 'auto',
     },
     timeout: 5000,
@@ -25,10 +27,13 @@ export async function fetchOpenMeteo(lat, lon) {
   return {
     temperature: Math.round(c.temperature_2m * 10) / 10,
     feelsLike: Math.round(c.apparent_temperature * 10) / 10,
-    humidity: c.relativehumidity_2m,
-    description: WMO_MAP[c.weathercode] ?? 'couvert',
-    windSpeed: Math.round(c.windspeed_10m * 10) / 10,
+    humidity: c.relative_humidity_2m ?? c.relativehumidity_2m,
+    weatherCode: c.weather_code ?? c.weathercode,
+    description: WMO_MAP[c.weather_code ?? c.weathercode] ?? 'couvert',
+    windSpeed: Math.round((c.wind_speed_10m ?? c.windspeed_10m) * 10) / 10,
     precipitation: c.precipitation,
+    observedAt: c.time ?? null,
+    fetchedAt: new Date().toISOString(),
     _live: true,
   };
 }
@@ -39,9 +44,10 @@ export function getSeasonalMockWeather(lat) {
   const isSummer = isNorthern ? (month >= 5 && month <= 8) : (month >= 11 || month <= 2);
   const isWinter = isNorthern ? (month >= 11 || month <= 2) : (month >= 5 && month <= 8);
 
-  if (isSummer) return { temperature: 26 + Math.random() * 6, feelsLike: 28 + Math.random() * 5, humidity: 45 + Math.round(Math.random() * 20), description: 'ciel dégagé', windSpeed: 3 + Math.random() * 4 };
-  if (isWinter) return { temperature: 2 + Math.random() * 6, feelsLike: -1 + Math.random() * 5, humidity: 70 + Math.round(Math.random() * 20), description: 'couvert', windSpeed: 5 + Math.random() * 8 };
-  return { temperature: 14 + Math.random() * 6, feelsLike: 12 + Math.random() * 6, humidity: 55 + Math.round(Math.random() * 20), description: 'partiellement nuageux', windSpeed: 4 + Math.random() * 5 };
+  const fetchedAt = new Date().toISOString();
+  if (isSummer) return { temperature: 26 + Math.random() * 6, feelsLike: 28 + Math.random() * 5, humidity: 45 + Math.round(Math.random() * 20), description: 'ciel dégagé', windSpeed: 3 + Math.random() * 4, fetchedAt };
+  if (isWinter) return { temperature: 2 + Math.random() * 6, feelsLike: -1 + Math.random() * 5, humidity: 70 + Math.round(Math.random() * 20), description: 'couvert', windSpeed: 5 + Math.random() * 8, fetchedAt };
+  return { temperature: 14 + Math.random() * 6, feelsLike: 12 + Math.random() * 6, humidity: 55 + Math.round(Math.random() * 20), description: 'partiellement nuageux', windSpeed: 4 + Math.random() * 5, fetchedAt };
 }
 
 export function setCors(res) {

@@ -2,7 +2,9 @@ import React, { useState, useCallback, useEffect } from 'react';
 import './index.css';
 import LivreBlanc from './LivreBlanc.jsx';
 import SignauxContextuels from './SignauxContextuels.jsx';
+import { CITIES } from './data/cities.js';
 import { createPortal } from 'react-dom';
+import { AxisMetrics, SectorIndicator, Sparkline, SourceLinks, articleNameFromUrl, formatViews, getRecentViews } from './TrendEvidence.jsx';
 
 /* ---------- ICONS (SVG inline) ---------- */
 const Icon = {
@@ -216,9 +218,6 @@ function Sidebar({ section, setSection }) {
         </button>
       ))}
       <div className="nav-spacer" />
-      <button type="button" className="nav-icon" aria-label="Réglages" title="Réglages">
-        <Icon.settings />
-      </button>
     </aside>
   );
 }
@@ -277,11 +276,6 @@ function Card({ title, sub, col = 6, dark = false, className = '', children }) {
             <h3>{title}</h3>
             {sub && <div className="sub">{sub}</div>}
           </div>
-          <div className="actions">
-            <button type="button" className="ico" aria-label="Options">
-              <Icon.more />
-            </button>
-          </div>
         </div>
       )}
       {children}
@@ -291,6 +285,116 @@ function Card({ title, sub, col = 6, dark = false, className = '', children }) {
 
 /* ---------- BRIEF FORM ---------- */
 function BriefForm({ brief, onChange, onSubmit, loading, error }) {
+  const [geoError, setGeoError] = useState(null);
+  const [customizerOpen, setCustomizerOpen] = useState(false);
+  const [automaticArticles, setAutomaticArticles] = useState([]);
+  const [automaticLoading, setAutomaticLoading] = useState(false);
+  const [articleQuery, setArticleQuery] = useState('');
+  const [articleResults, setArticleResults] = useState([]);
+  const [articleSearching, setArticleSearching] = useState(false);
+  const [articleError, setArticleError] = useState(null);
+  const selectedCity = CITIES.find((city) => city.label === brief.city);
+  const customArticles = brief.customArticles ?? [];
+  const isCustomMode = customArticles.length > 0;
+  const selectedArticles = isCustomMode ? customArticles : automaticArticles;
+
+  const loadAutomaticArticles = useCallback(async () => {
+    setAutomaticLoading(true);
+    setArticleError(null);
+    try {
+      const params = new URLSearchParams({ product: brief.product ?? '', message: brief.message ?? '' });
+      const response = await fetch(`/api/trends?${params}`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      const articles = [...new Set((data.keywords ?? [])
+        .flatMap((trend) => trend.sourceUrls ?? [])
+        .map(articleNameFromUrl))];
+      setAutomaticArticles(articles);
+    } catch {
+      setAutomaticArticles([]);
+      setArticleError('Les articles automatiques sont indisponibles pour le moment.');
+    } finally {
+      setAutomaticLoading(false);
+    }
+  }, [brief.product, brief.message]);
+
+  useEffect(() => {
+    if (customizerOpen && !isCustomMode) loadAutomaticArticles();
+  }, [customizerOpen, isCustomMode, loadAutomaticArticles]);
+
+  useEffect(() => {
+    const query = articleQuery.trim();
+    if (query.length < 2) {
+      setArticleResults([]);
+      setArticleSearching(false);
+      return undefined;
+    }
+
+    let active = true;
+    const timeout = window.setTimeout(async () => {
+      setArticleSearching(true);
+      try {
+        const response = await fetch(`/api/wiki-search?q=${encodeURIComponent(query)}`);
+        const data = await response.json();
+        if (active) {
+          setArticleResults(data.results ?? []);
+          setArticleError(data.error ?? null);
+        }
+      } catch {
+        if (active) setArticleError('Recherche indisponible');
+      } finally {
+        if (active) setArticleSearching(false);
+      }
+    }, 300);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timeout);
+    };
+  }, [articleQuery]);
+
+  const applyCity = (city) => {
+    onChange('city', city.label);
+    onChange('lat', city.lat);
+    onChange('lon', city.lon);
+  };
+
+  const geolocate = () => {
+    setGeoError(null);
+    if (!navigator.geolocation) {
+      setGeoError('La géolocalisation n’est pas prise en charge par ce navigateur.');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        onChange('city', 'Ma position');
+        onChange('lat', position.coords.latitude.toFixed(4));
+        onChange('lon', position.coords.longitude.toFixed(4));
+      },
+      () => setGeoError('La géolocalisation a été refusée.'),
+    );
+  };
+
+  const addArticle = (title) => {
+    if (selectedArticles.includes(title)) {
+      setArticleQuery('');
+      setArticleResults([]);
+      return;
+    }
+    if (selectedArticles.length >= 12) {
+      setArticleError('La limite de 12 articles est atteinte.');
+      return;
+    }
+    onChange('customArticles', [...selectedArticles, title]);
+    setArticleQuery('');
+    setArticleResults([]);
+    setArticleError(null);
+  };
+
+  const removeArticle = (title) => {
+    onChange('customArticles', selectedArticles.filter((article) => article !== title));
+  };
+
   return (
     <Card title="Brief de campagne" sub="Définissez le contexte d'activation" col={12}>
       <form className="brief-grid" onSubmit={onSubmit}>
@@ -327,11 +431,24 @@ function BriefForm({ brief, onChange, onSubmit, loading, error }) {
             {PRESSURES.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
           </select>
         </Field>
-        <Field label="Latitude">
-          <input type="text" value={brief.lat} onChange={(e) => onChange('lat', e.target.value)} />
+        <Field label="Taille de l’audience (optionnel)">
+          <input type="number" min="1" value={brief.audienceSize} onChange={(e) => onChange('audienceSize', e.target.value)} placeholder="Ex. 25000" />
         </Field>
-        <Field label="Longitude">
-          <input type="text" value={brief.lon} onChange={(e) => onChange('lon', e.target.value)} />
+        <Field label="Ville">
+          <div className="brief-location-controls">
+            <select
+              value={selectedCity ? selectedCity.label : 'custom'}
+              onChange={(e) => {
+                const city = CITIES.find((item) => item.label === e.target.value);
+                if (city) applyCity(city);
+              }}
+            >
+              {CITIES.map((city) => <option key={city.label} value={city.label}>{city.label}</option>)}
+              {!selectedCity && <option value="custom">{brief.city || 'Position personnalisée'}</option>}
+            </select>
+            <button type="button" className="brief-geo-btn" onClick={geolocate}>Utiliser ma position</button>
+          </div>
+          {geoError && <span className="brief-geo-error">{geoError}</span>}
         </Field>
         <Field label="Message principal" full>
           <textarea
@@ -341,6 +458,58 @@ function BriefForm({ brief, onChange, onSubmit, loading, error }) {
             placeholder="Votre accroche marketing…"
           />
         </Field>
+        <div className="brief-customizer field-full">
+          <button
+            type="button"
+            className="brief-customizer-toggle"
+            onClick={() => setCustomizerOpen((open) => !open)}
+            aria-expanded={customizerOpen}
+          >
+            Personnaliser les mots-clés du signal d’intention <span aria-hidden="true">{customizerOpen ? '▴' : '▾'}</span>
+          </button>
+          {customizerOpen && (
+            <div className="brief-customizer-panel">
+              <p className="brief-customizer-help">
+                {isCustomMode ? 'Les articles ci-dessous remplacent le mapping automatique pour cette analyse.' : 'Articles sélectionnés automatiquement pour le secteur détecté.'}
+              </p>
+              <div className="brief-article-chips">
+                {automaticLoading ? (
+                  <span className="brief-customizer-muted">Chargement des articles automatiques…</span>
+                ) : selectedArticles.length ? selectedArticles.map((article) => (
+                  <span className="brief-article-chip" key={article}>
+                    {article.replaceAll('_', ' ')}
+                    <button type="button" onClick={() => removeArticle(article)} aria-label={`Retirer ${article}`}>×</button>
+                  </span>
+                )) : (
+                  <span className="brief-customizer-muted">Ajoutez des articles pour créer une sélection personnalisée.</span>
+                )}
+              </div>
+              <div className="brief-article-count">{selectedArticles.length} article{selectedArticles.length > 1 ? 's' : ''} sélectionné{selectedArticles.length > 1 ? 's' : ''} sur 12</div>
+              <div className="brief-wiki-search">
+                <input
+                  type="search"
+                  value={articleQuery}
+                  onChange={(event) => setArticleQuery(event.target.value)}
+                  placeholder="Rechercher un article Wikipédia"
+                  aria-label="Rechercher un article Wikipédia"
+                />
+                {articleSearching && <span className="brief-search-status">Recherche…</span>}
+                {articleResults.length > 0 && (
+                  <div className="brief-search-results">
+                    {articleResults.map((result) => (
+                      <button type="button" key={result.title} onClick={() => addArticle(result.title)} disabled={selectedArticles.includes(result.title)}>
+                        <strong>{result.title}</strong>
+                        {result.snippet && <span>{result.snippet}</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {isCustomMode && <button type="button" className="brief-reset-articles" onClick={() => onChange('customArticles', [])}>Revenir au mapping automatique</button>}
+              {articleError && <p className="brief-customizer-error">{articleError}</p>}
+            </div>
+          )}
+        </div>
         <div className="brief-submit-row">
           <button type="submit" className="pill-btn neon" disabled={loading}>
             {loading ? 'Analyse en cours…' : "Lancer l'Agent Contextuel"}
@@ -364,70 +533,129 @@ function Field({ label, children, full }) {
 
 /* ---------- HERO (score global) ---------- */
 function HeroScore({ scores, recommendation, context, meta }) {
+  const measurable = scores.global !== null && scores.status === 'ok';
+  const delta = context.seasonalNormal?.delta;
+
   return (
     <section className="card hero col-12 in" style={{ opacity: 1, transform: 'none' }}>
       <div className="left">
         <div>
           <span className="badge"><span className="ping" />Agent Marketing Contextuel</span>
-          <h2>
-            Score global <span className="accent">{scores.global}</span>/100
-          </h2>
+          {measurable ? (
+            <h2 title={`Valeur exacte : ${scores.global}/100. Affichée par paliers de 5, la granularité du modèle ne justifiant pas une précision à l’unité.`}>
+              Score global <span className="accent">≈ {scores.displayGlobal}</span>/100
+            </h2>
+          ) : (
+            <h2>Score <span className="accent">non publiable</span></h2>
+          )}
           <p className="lede">{scores.interpretation}</p>
         </div>
         <div className="meta-row">
-          <div className="item">Confiance<b>{scores.confidence}</b></div>
-          <div className="item">Action<b>{recommendation.action}</b></div>
-          <div className="item">Contexte<b>{context.contextType.label}</b></div>
-          {context.trendsSignal && (
-            <div className="item">Tendance<b>{context.trendsSignal.dominant}</b></div>
-          )}
-          <div className="item">Modules<b>{meta.modules}</b></div>
-        </div>
-      </div>
-      <div className="right">
-        <div className="stat-bubble">
-          <span className="big">{Math.round(context.weather.temperature)}°</span>
-          <span className="lab">{context.weather.description}</span>
-        </div>
-        <div className="hero-art" aria-hidden="true">
-          <div className="sun" />
-          <div className="moon" />
-          <div className="equalizer">
-            {Array.from({ length: 24 }).map((_, i) => (
-              <div key={i} className="bar" style={{ animationDelay: `${i * 0.05}s` }} />
-            ))}
+          {/* Fiabilité des DONNÉES : indépendante du score obtenu. */}
+          <div className="item" title={scores.dataConfidence.summary}>
+            Fiabilité des données<b>{scores.dataConfidence.level}</b>
           </div>
+          <div className="item">Action<b>{recommendation.action}</b></div>
+          <div className="item" title={context.interpretation}>
+            Contexte<b>{context.contextType.label} ({context.contextIndex >= 0 ? '+' : ''}{context.contextIndex})</b>
+          </div>
+          {Number.isFinite(delta) && (
+            <div className="item" title={`Normale saisonnière du lieu à cette date : ${context.seasonalNormal.expected} °C.`}>
+              Écart à la normale<b>{delta > 0 ? '+' : ''}{delta} °C</b>
+            </div>
+          )}
+          {context.trendsSignal && (
+            <div className="item" title="Axe d’intention le plus consulté, classé sur l’indice d’attention (volume + progression).">
+              Intention<b>{context.trendsSignal.dominant}</b>
+            </div>
+          )}
         </div>
+        {scores.dataConfidence.degraded.length > 0 && (
+          <p className="hero-degraded">
+            Signaux dégradés : {scores.dataConfidence.degraded.join(' · ')}
+          </p>
+        )}
+      </div>
+      <div className="right hero-video-area">
+        <video
+          className="hero-video"
+          src="/Orche_canva.mp4"
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="auto"
+          aria-label="Visualisation animée de l’orchestration des signaux contextuels"
+        />
+        <div className="hero-video-blend" aria-hidden="true" />
+        <div className="hero-video-radial" aria-hidden="true" />
+        <div className="hero-video-vignette" aria-hidden="true" />
       </div>
     </section>
   );
 }
 
 /* ---------- CONTEXT SIGNAL ---------- */
-function ContextSignal({ context }) {
+function ContextSignal({ context, onClearCustomArticles }) {
+  const trendsStatus = context.trendsStatus || (context.trendsFallback ? 'seasonal_estimate' : context.trendsSignal ? 'live' : 'unavailable');
+  const customMode = Boolean(context.customMode);
+  const weatherUpdatedAt = context.weather.fetchedAt ? new Date(context.weather.fetchedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : null;
+  const trendsDataThrough = context.trendsDataThrough
+    ? new Date(`${context.trendsDataThrough}T00:00:00Z`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+    : null;
+  const trendsDescription = trendsStatus === 'seasonal_estimate'
+    ? 'Estimation saisonnière'
+    : customMode
+      ? `${context.customArticleCount ?? context.trendsSignal?.keywords?.length ?? 0} articles choisis manuellement`
+    : trendsDataThrough
+      ? `Wikimedia, données jusqu’au ${trendsDataThrough}`
+      : 'Wikimedia Pageviews';
   const tiles = [
-    { lab: 'Météo', vl: `${Math.round(context.weather.temperature)}°C`, dl: context.weather.description },
-    { lab: 'Saison', vl: context.season.label, dl: context.isSeasonCoherent ? 'Cohérent' : 'À ajuster' },
+    { lab: 'Météo', vl: `${Math.round(context.weather.temperature)}°C`, dl: `${context.weather.description}${weatherUpdatedAt ? ` · relevé à ${weatherUpdatedAt}` : ''}` },
+    {
+      lab: 'Écart à la normale',
+      vl: Number.isFinite(context.seasonalNormal?.delta)
+        ? `${context.seasonalNormal.delta > 0 ? '+' : ''}${context.seasonalNormal.delta}°C`
+        : '—',
+      dl: Number.isFinite(context.seasonalNormal?.expected)
+        ? `${context.seasonalNormal.expected}°C attendus · ${context.season.label}`
+        : context.season.label,
+    },
     { lab: 'Moment', vl: context.timeOfDay.label, dl: 'Plage active' },
-    { lab: 'Contexte', vl: context.contextType.label, dl: (context.contextType.toneMatch || []).slice(0, 2).join(' · ') },
-    ...(context.trendsSignal ? [{
-      lab: 'Tendances',
+    {
+      lab: 'Contexte',
+      vl: `${context.contextType.label}`,
+      dl: `index ${context.contextIndex >= 0 ? '+' : ''}${context.contextIndex} · ${context.intensity}`,
+    },
+    ...(context.trendsSignal && trendsStatus !== 'unavailable' ? [{
+      lab: customMode ? 'Sélection personnalisée' : 'Tendances',
       vl: context.trendsSignal.dominant.toUpperCase(),
-      dl: (context.trendsSignal.confidence === 'high' ? '↑ ' : '') + 'live',
+      dl: trendsDescription,
+      trends: context.trendsSignal.keywords,
     }] : []),
   ];
   return (
     <section className="card signal col-12 in" style={{ opacity: 1, transform: 'none' }}>
       <div className="top">
         <div>
-          <h3>Signal contextuel</h3>
+          <h3>{customMode ? 'Wikimedia Pageviews · Sélection personnalisée' : 'Signal contextuel'}</h3>
           <div className="sub">Captation temps réel</div>
+          {!customMode && (
+            <SectorIndicator
+              sectorLabel={context.sectorLabel}
+              sectorConfidence={context.sectorConfidence}
+              matchedKeywords={context.matchedKeywords}
+              rationale={context.sectorRationale}
+              weatherSensitive={context.sectorWeatherSensitive !== false}
+            />
+          )}
         </div>
-        {context.weather.isMock || context.weather._mock ? (
-          <span className="pill-mini">Données simulées</span>
-        ) : (
-          <span className="pill-mini">Live</span>
-        )}
+        <div className="signal-statuses">
+          {(context.weather.isMock || context.weather._fallback) && <span className="pill-mini">Données météo simulées</span>}
+          <span className="pill-mini">{trendsStatus === 'live' ? 'Wikipédia Pageviews' : trendsStatus === 'seasonal_estimate' ? 'Estimation saisonnière' : 'Tendances indisponibles'}</span>
+          {trendsStatus === 'live' && trendsDataThrough && <span className="pill-mini">Données jusqu’au {trendsDataThrough}</span>}
+          {customMode && <button type="button" className="pill-mini" onClick={onClearCustomArticles}>Revenir au mapping automatique</button>}
+        </div>
       </div>
       <div className="body">
         {tiles.map((t, i) => (
@@ -435,6 +663,20 @@ function ContextSignal({ context }) {
             <span className="nm">{t.lab}</span>
             <span className="vl">{t.vl}</span>
             <span className="dl">{t.dl}</span>
+            {trendsStatus === 'live' && t.trends && (
+              <div className="signal-trends-evidence">
+                {t.trends.map((trend) => (
+                  <div className="signal-trend-proof" key={trend.keyword}>
+                    <div className="signal-trend-proof-head">
+                      <span className="signal-trend-name">{trend.keyword}</span>
+                    </div>
+                    <AxisMetrics trend={trend} />
+                    <Sparkline rawSeries={trend.rawSeries} label={trend.keyword} />
+                    <SourceLinks sourceUrls={trend.sourceUrls} />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -445,26 +687,59 @@ function ContextSignal({ context }) {
 /* ---------- SCORES (subscores bars) ---------- */
 function ScoresPanel({ scores }) {
   const items = [
-    { key: 'meteo', label: 'Météo / Produit', weight: 25 },
-    { key: 'message', label: 'Message / Ton', weight: 30 },
-    { key: 'audience', label: 'Audience / Pression', weight: 25 },
-    { key: 'timing', label: 'Timing / Canal', weight: 20 },
+    { key: 'meteo', label: 'Météo / Produit' },
+    { key: 'message', label: 'Message / Ton' },
+    { key: 'audience', label: 'Audience / Pression' },
+    { key: 'timing', label: 'Timing / Canal' },
+    { key: 'intention', label: 'Intention collective' },
   ];
+  const notMeasurable = new Set(scores.nonDiscriminant ?? []);
+
   return (
-    <Card title="Sous-scores" sub="Décomposition du score contextuel" col={12}>
+    <Card
+      title="Sous-scores"
+      sub={notMeasurable.size > 0
+        ? `Décomposition — ${notMeasurable.size} dimension(s) non mesurable(s) pour ce brief, exclue(s) du calcul et son poids redistribué`
+        : 'Décomposition du score contextuel'}
+      col={12}
+    >
       <div className="bar-row">
         {items.map((it) => {
           const v = scores.subscores[it.key] ?? 0;
-          const cls = v >= 70 ? 'summer' : 'winter';
+          const weight = Math.round((scores.weights?.[it.key] ?? 0) * 100);
+          const muted = notMeasurable.has(it.key);
+          const cls = muted ? 'muted' : v >= 70 ? 'summer' : 'winter';
           return (
-            <div key={it.key} className="bar-item">
+            <div key={it.key} className={`bar-item ${muted ? 'bar-item-muted' : ''}`}>
               <div className="lab-row">
-                <span className="name">{it.label} <span className="subscore-weight">({it.weight}%)</span></span>
-                <span className={`delta ${v >= 70 ? '' : 'down'}`}>{v}</span>
+                <span className="name">
+                  {it.label}{' '}
+                  <span className="subscore-weight">
+                    {muted ? 'poids redistribué' : `(${weight}%)`}
+                  </span>
+                </span>
+                <span className={`delta ${muted ? 'muted' : v >= 70 ? '' : 'down'}`}>
+                  {muted ? 'non mesurable' : v}
+                </span>
               </div>
-              <div className="track">
-                <div className={`seg ${cls}`} style={{ width: `${v}%` }}>{v}</div>
+              {/* Une dimension non mesurable est grisée, jamais remplie avec une valeur arbitraire. */}
+              <div className={`track ${muted ? 'track-muted' : ''}`}>
+                {muted
+                  ? <div className="seg seg-muted" style={{ width: '100%' }}>signal non discriminant</div>
+                  : <div className={`seg ${cls}`} style={{ width: `${v}%` }}>{v}</div>}
               </div>
+              {scores.reasons?.[it.key]?.length > 0 && (
+                <details className="score-reasons">
+                  <summary>Pourquoi ce score ?</summary>
+                  <ul>
+                    {scores.reasons[it.key].map((reason, index) => (
+                      <li key={`${reason.field}-${index}`}>
+                        <strong>{reason.field}</strong> : {reason.value} ({reason.impact > 0 ? '+' : ''}{reason.impact} points). {reason.text}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
             </div>
           );
         })}
@@ -475,16 +750,23 @@ function ScoresPanel({ scores }) {
 
 /* ---------- RECOMMENDATION ---------- */
 function RecommendationPanel({ recommendation }) {
-  const cls = recommendation.action.toLowerCase().includes('go') ? 'neon' : 'dark';
+  const cls = recommendation.action === 'ACTIVER' ? 'neon' : 'dark';
   return (
     <Card title="Recommandation" sub="Décision de l'agent" col={12}>
       <div className="ministats" style={{ gridTemplateColumns: '1fr', marginBottom: 14 }}>
-        <div className={`ministat ${cls}`}>
+        <div className={`ministat ${cls} action-${recommendation.action.toLowerCase()}`}>
           <span className="lab">Action recommandée</span>
           <span className="big">{recommendation.action}</span>
-          <span className="ctx">Confiance : {recommendation.confidence}</span>
+          {/* Rôle distinct du badge « Fiabilité des données » du bandeau :
+              ici, confiance dans la DÉCISION, plafonnée par celle des données. */}
+          <span className="ctx" title={recommendation.confidenceBasis}>
+            Confiance de la décision : {recommendation.confidence}
+          </span>
         </div>
       </div>
+      {recommendation.confidenceNote && (
+        <p className="reco-confidence-note">{recommendation.confidenceNote}</p>
+      )}
       <p className="reco-justif">{recommendation.justification}</p>
       <p className="reco-text">{recommendation.recommendation}</p>
       <p className="reco-risk"><strong>Risque :</strong> {recommendation.risk}</p>
@@ -547,9 +829,10 @@ function VariantsPanel({ variants }) {
             <blockquote className="variant-msg">{v.message}</blockquote>
             <div className="variant-meta">
               <span>Ton : {v.tone}</span>
-              <span>Score : {v.score}/100</span>
+              {Number.isFinite(v.score) && <span>Score : {v.score}/100</span>}
               <span className="variant-lift">{v.expectedLift}</span>
             </div>
+            {v.scoreBasis && <p className="variant-basis">{v.scoreBasis}</p>}
           </div>
         ))}
       </div>
@@ -575,10 +858,10 @@ function ActivationPanel({ activation }) {
         <div className="ministat mint">
           <span className="lab">Pression</span>
           <span className="big" style={{ fontSize: 22 }}>{activation.pressure.label}</span>
-          <span className="ctx">{activation.pressure.adjusted !== activation.pressure.level ? activation.pressure.reason : '—'}</span>
+          <span className="ctx">{activation.pressure.adjusted !== activation.pressure.level ? activation.pressure.reason : 'Non ajustée'}</span>
         </div>
         <div className="ministat">
-          <span className="lab">Reach estimé</span>
+          <span className="lab">Audience</span>
           <span className="big" style={{ fontSize: 22 }}>{activation.estimatedReach}</span>
           <span className="ctx">CTR : {activation.estimatedPerformance.ctr}</span>
         </div>
@@ -612,7 +895,7 @@ function ABTestPanel({ abTest }) {
         <div className="ministat">
           <span className="lab">Population</span>
           <span className="big" style={{ fontSize: 22 }}>{abTest.population.testSize}</span>
-          <span className="ctx">Test</span>
+          <span className="ctx">{abTest.population.note}</span>
         </div>
         <div className="ministat">
           <span className="lab">Durée</span>
@@ -669,46 +952,70 @@ function GuardrailsPanel({ guardrails }) {
 }
 
 /* ---------- LEARNING ---------- */
-function LearningPanel({ learning }) {
+function LearningPanel({ learning, onLearningCalculated }) {
+  const [campaignData, setCampaignData] = useState({ sent: '', opened: '', clicked: '', converted: '', unsubscribed: '', variant: 'non renseignée' });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const hasResults = learning?.status === 'calculated_from_user_input';
+
+  const updateCampaignData = (field, value) => setCampaignData((previous) => ({ ...previous, [field]: value }));
+
+  const submitResults = async (event) => {
+    event.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/learning', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(campaignData),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || `Erreur ${response.status}`);
+      onLearningCalculated(data);
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <Card title="Learning Loop" sub="Simulation post-campagne" col={12}>
-      <div className="ministats">
-        <div className="ministat">
-          <span className="lab">Envoyés</span>
-          <span className="big">{learning.metrics.sent.toLocaleString()}</span>
+    <Card title="Learning Loop" sub="Résultats de campagne saisis" col={12}>
+      {!hasResults && <p className="learning-empty">Renseignez les résultats de votre campagne pour obtenir les enseignements de l’agent.</p>}
+
+      <form className="learning-form" onSubmit={submitResults}>
+        <label><span>Envoyés</span><input type="number" min="1" required value={campaignData.sent} onChange={(e) => updateCampaignData('sent', e.target.value)} /></label>
+        <label><span>Ouverts</span><input type="number" min="0" required value={campaignData.opened} onChange={(e) => updateCampaignData('opened', e.target.value)} /></label>
+        <label><span>Cliqués</span><input type="number" min="0" required value={campaignData.clicked} onChange={(e) => updateCampaignData('clicked', e.target.value)} /></label>
+        <label><span>Convertis</span><input type="number" min="0" required value={campaignData.converted} onChange={(e) => updateCampaignData('converted', e.target.value)} /></label>
+        <label><span>Désabonnés</span><input type="number" min="0" value={campaignData.unsubscribed} onChange={(e) => updateCampaignData('unsubscribed', e.target.value)} /></label>
+        <button type="submit" className="pill-btn dark" disabled={loading}>{loading ? 'Calcul en cours…' : 'Calculer les enseignements'}</button>
+      </form>
+      {error && <p className="brief-error">{error}</p>}
+
+      {hasResults && <>
+        <div className="ministats">
+          <div className="ministat"><span className="lab">Envoyés</span><span className="big">{learning.metrics.sent.toLocaleString()}</span></div>
+          <div className="ministat mint"><span className="lab">Ouverts</span><span className="big">{learning.metrics.opened.toLocaleString()}</span><span className="ctx">{learning.metrics.openRate}%</span></div>
+          <div className="ministat neon"><span className="lab">Cliqués</span><span className="big">{learning.metrics.clicked.toLocaleString()}</span><span className="ctx">CTR {learning.metrics.ctr}%</span></div>
+          <div className="ministat dark"><span className="lab">Convertis</span><span className="big">{learning.metrics.converted.toLocaleString()}</span><span className="ctx">{learning.metrics.conversionRate}%</span></div>
         </div>
-        <div className="ministat mint">
-          <span className="lab">Ouverts</span>
-          <span className="big">{learning.metrics.opened.toLocaleString()}</span>
-          <span className="ctx">{learning.metrics.openRate}%</span>
+        <div className="learning-verdict">
+          <p className="verdict-score">Score de performance calculé : {learning.performance.overallScore}/100</p>
+          <p>{learning.performance.verdict}</p>
+          <p className="learning-method">{learning.performance.methodology}</p>
         </div>
-        <div className="ministat neon">
-          <span className="lab">Cliqués</span>
-          <span className="big">{learning.metrics.clicked.toLocaleString()}</span>
-          <span className="ctx">CTR {learning.metrics.ctr}%</span>
-        </div>
-        <div className="ministat dark">
-          <span className="lab">Convertis</span>
-          <span className="big">{learning.metrics.converted.toLocaleString()}</span>
-          <span className="ctx">{learning.metrics.conversionRate}%</span>
-        </div>
-      </div>
-      <div className="learning-verdict">
-        <p className="verdict-score">Score performance : {learning.performance.overallScore}/100</p>
-        <p>{learning.performance.verdict}</p>
-      </div>
-      <h4 className="sub-h">Learnings</h4>
-      <div className="learnings-list">
-        {learning.learnings.map((l, i) => (
-          <div key={i} className={`learning-item learning-${l.type}`}>
-            <span className="learning-type">{l.type === 'positive' ? '+' : l.type === 'negative' ? '−' : '='}</span>
-            <div>
-              <p>{l.insight}</p>
-              <p className="learning-action">{l.action}</p>
+        <h4 className="sub-h">Enseignements issus des résultats saisis</h4>
+        <div className="learnings-list">
+          {learning.learnings.map((item, index) => (
+            <div key={index} className={`learning-item learning-${item.type}`}>
+              <span className="learning-type">{item.type === 'negative' ? '!' : '='}</span>
+              <div><p>{item.insight}</p><p className="learning-action">{item.action}</p></div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      </>}
     </Card>
   );
 }
@@ -730,15 +1037,18 @@ function CTAReset({ onReset }) {
 
 /* ---------- MAIN APP ---------- */
 const DEFAULT_BRIEF = {
-  product: '',
-  message: '',
-  tone: 'dynamique',
+  product: 'Collection bougie parfumée',
+  message: 'Découvrez nos bougies artisanales pour des soirées cocooning',
+  tone: 'chaleureux',
   audience: 'clients-actifs',
   channel: 'email',
   objective: 'engagement',
   pressure: 'moyen',
+  audienceSize: '',
+  city: 'Paris',
   lat: '48.8566',
   lon: '2.3522',
+  customArticles: [],
 };
 
 function App() {
@@ -755,13 +1065,17 @@ function App() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    await analyzeBrief(brief);
+  };
+
+  const analyzeBrief = async (briefToAnalyze) => {
     setLoading(true);
     setError(null);
     try {
       const res = await fetch('/api/agent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(brief),
+        body: JSON.stringify(briefToAnalyze),
       });
       if (!res.ok) throw new Error(`Erreur ${res.status}`);
       const data = await res.json();
@@ -775,10 +1089,38 @@ function App() {
     }
   };
 
+  const handleClearCustomArticles = () => {
+    const automaticBrief = { ...brief, customArticles: [] };
+    setBrief(automaticBrief);
+    analyzeBrief(automaticBrief);
+  };
+
   const handleReset = () => {
     setResult(null);
     setBrief(DEFAULT_BRIEF);
     setSection('brief');
+  };
+
+  const handleAnalyzeContext = (city) => {
+    setBrief((previous) => ({ ...previous, city: city.label, lat: city.lat, lon: city.lon }));
+    setSection('brief');
+  };
+
+  const handleLearningCalculated = (learning) => {
+    setResult((previous) => ({ ...previous, learning }));
+  };
+
+  const handleExportJson = () => {
+    if (!result) return;
+    const blob = new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `barometre-data-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -800,7 +1142,7 @@ function App() {
             </h1>
           </div>
           <div className="head-actions">
-            <button type="button" className="pill-btn">Export PDF</button>
+            <button type="button" className="pill-btn" onClick={handleExportJson} disabled={!result}>Exporter le JSON</button>
             <button type="button" className="pill-btn neon" onClick={() => setSection('brief')}>
               Nouveau brief <Icon.arrow />
             </button>
@@ -810,7 +1152,7 @@ function App() {
         {section === 'livre' ? (
           <LivreBlanc setSection={setSection} />
         ) : section === 'weather' ? (
-          <SignauxContextuels />
+          <SignauxContextuels onAnalyzeContext={handleAnalyzeContext} onClearCustomArticles={handleClearCustomArticles} brief={brief} />
         ) : (
         <div className="bento view-fade" key={section + (result ? '-r' : '-e')}>
           {(section === 'brief' || !result) && (
@@ -828,7 +1170,7 @@ function App() {
               {/* ── Vue d'ensemble ── */}
               {section === 'overview' && <>
                 <HeroScore scores={result.scores} recommendation={result.recommendation} context={result.context} meta={result.meta} />
-                <ContextSignal context={result.context} />
+                <ContextSignal context={result.context} onClearCustomArticles={handleClearCustomArticles} />
                 <ScoresPanel scores={result.scores} />
                 <RecommendationPanel recommendation={result.recommendation} />
               </>}
@@ -838,7 +1180,7 @@ function App() {
                 <GapPanel gap={result.gap} />
                 <VariantsPanel variants={result.variants} />
                 <ABTestPanel abTest={result.abTest} />
-                <LearningPanel learning={result.learning} />
+                <LearningPanel learning={result.learning} onLearningCalculated={handleLearningCalculated} />
               </>}
 
               <CTAReset onReset={handleReset} />
@@ -848,7 +1190,7 @@ function App() {
         )}
 
         <footer className="foot">
-          <span>Baromètre Data — Agent Marketing Contextuel v2.0</span>
+          <span>Baromètre Data · Agent Marketing Contextuel v2.0</span>
           <span className="dot">●</span>
           <span>Prototype M2 Data Marketing & IA</span>
         </footer>

@@ -10,7 +10,7 @@ export const CHAPTERS = [
       {
         type: 'callout',
         label: 'Livre blanc V4',
-        text: 'Marketing prédictif & agents IA — Comment transformer les signaux contextuels en décisions marketing activables ?',
+        text: 'Marketing prédictif & agents IA : comment transformer les signaux contextuels en décisions marketing activables ?',
       },
       {
         type: 'p',
@@ -39,7 +39,7 @@ export const CHAPTERS = [
       },
       {
         type: 'p',
-        text: 'Mickael Randrianandraina — Web Analyst en alternance chez Cultura, étudiant en Mastère Data Marketing & IA. Son quotidien professionnel consiste à analyser des données de navigation, de trafic, de performance commerciale et de comportement utilisateur pour aider les équipes marketing à mieux comprendre ce qui se passe sur leurs canaux digitaux.',
+        text: 'Mickael Randrianandraina, Web Analyst en alternance chez Cultura, étudiant en Mastère Data Marketing & IA. Son quotidien professionnel consiste à analyser des données de navigation, de trafic, de performance commerciale et de comportement utilisateur pour aider les équipes marketing à mieux comprendre ce qui se passe sur leurs canaux digitaux.',
       },
       {
         type: 'p',
@@ -261,7 +261,7 @@ export const CHAPTERS = [
       {
         type: 'callout',
         label: 'Étude Park et al. (2019)',
-        text: 'Nature Human Behaviour — analyse de 765 millions d\'écoutes Spotify issues d\'environ un million d\'utilisateurs dans 51 pays. Les chercheurs ont identifié des variations journalières et saisonnières dans les préférences affectives musicales.',
+        text: 'Nature Human Behaviour : analyse de 765 millions d\'écoutes Spotify issues d\'environ un million d\'utilisateurs dans 51 pays. Les chercheurs ont identifié des variations journalières et saisonnières dans les préférences affectives musicales.',
       },
       {
         type: 'p',
@@ -274,7 +274,7 @@ export const CHAPTERS = [
       {
         type: 'callout',
         label: 'Étude Anglada-Tort et al. (2023)',
-        text: 'Royal Society Open Science — "Here comes the sun: music features of popular songs reflect prevailing weather conditions". Les périodes chaudes et ensoleillées sont davantage associées à des chansons à forte intensité et à charge émotionnelle positive.',
+        text: 'Royal Society Open Science : "Here comes the sun: music features of popular songs reflect prevailing weather conditions". Les périodes chaudes et ensoleillées sont davantage associées à des chansons à forte intensité et à charge émotionnelle positive.',
       },
       {
         type: 'p',
@@ -287,7 +287,7 @@ export const CHAPTERS = [
       {
         type: 'callout',
         label: 'Étude Murray et al. (2010)',
-        text: 'Journal of Retailing and Consumer Services — montre que l\'exposition à la météo peut influencer les dépenses, notamment via son effet sur les émotions négatives. La météo peut modifier l\'état émotionnel d\'un consommateur, et cet état émotionnel peut ensuite influencer sa propension à acheter ou à payer.',
+        text: 'Journal of Retailing and Consumer Services : montre que l\'exposition à la météo peut influencer les dépenses, notamment via son effet sur les émotions négatives. La météo peut modifier l\'état émotionnel d\'un consommateur, et cet état émotionnel peut ensuite influencer sa propension à acheter ou à payer.',
       },
       {
         type: 'h3',
@@ -346,6 +346,7 @@ export const CHAPTERS = [
         headers: ['Famille de signal', 'Exemples', 'Utilité marketing'],
         rows: [
           ['Signaux contextuels', 'météo, température, saison, jour, heure', 'Adapter le timing, le ton et l\'univers du message'],
+          ['Attention collective (Wikimedia Pageviews)', 'vues d’articles Wikipédia et évolution relative par thème', 'Identifier des sujets émergents et ajuster le message au niveau d’intérêt collectif'],
           ['Signaux comportementaux', 'pages vues, temps passé, recherche interne, rebond, panier abandonné', 'Détecter l\'intention ou le niveau d\'attention'],
           ['Signaux CRM', 'récence d\'achat, fréquence, panier moyen, catégories achetées', 'Prioriser les segments et personnaliser les offres'],
           ['Signaux d\'engagement', 'ouvertures e-mail, clics, interactions social media', 'Estimer la réceptivité à une sollicitation'],
@@ -446,10 +447,10 @@ export const CHAPTERS = [
         type: 'table',
         headers: ['Niveau', 'Rôle de l\'agent', 'Rôle de l\'humain'],
         rows: [
-          ['Niveau 1 — Agent analyste', 'Analyse les signaux et produit des recommandations', 'Lit, challenge et décide'],
-          ['Niveau 2 — Agent copilote', 'Propose des variantes de messages ou de scénarios', 'Valide avant activation'],
-          ['Niveau 3 — Agent semi-automatisé', 'Active des actions simples avec garde-fous', 'Supervise et contrôle les exceptions'],
-          ['Niveau 4 — Agent autonome encadré', 'Optimise certains scénarios en continu', 'Définit la stratégie, les règles et les limites'],
+          ['Niveau 1 : Agent analyste', 'Analyse les signaux et produit des recommandations', 'Lit, challenge et décide'],
+          ['Niveau 2 : Agent copilote', 'Propose des variantes de messages ou de scénarios', 'Valide avant activation'],
+          ['Niveau 3 : Agent semi-automatisé', 'Active des actions simples avec garde-fous', 'Supervise et contrôle les exceptions'],
+          ['Niveau 4 : Agent autonome encadré', 'Optimise certains scénarios en continu', 'Définit la stratégie, les règles et les limites'],
         ],
       },
       {
@@ -493,7 +494,7 @@ export const CHAPTERS = [
       },
       {
         type: 'p',
-        text: 'Le risque d\'un livre blanc consacré à l\'intelligence artificielle est de rester trop théorique. Pour éviter cet écueil, ce travail s\'accompagne d\'un prototype : Baromètre Data — une première version d\'un Agent Marketing Contextuel.',
+        text: 'Le risque d\'un livre blanc consacré à l\'intelligence artificielle est de rester trop théorique. Pour éviter cet écueil, ce travail s\'accompagne d\'un prototype : Baromètre Data, une première version d\'un Agent Marketing Contextuel.',
       },
       {
         type: 'callout',
@@ -527,11 +528,15 @@ export const CHAPTERS = [
         text: '5.3. Architecture des 10 modules',
       },
       {
+        type: 'p',
+        text: 'Le prototype retient Open-Meteo et Wikimedia Pageviews car ces deux signaux sont externes à l’individu, imprévisibles, universels et accessibles gratuitement. Les vues Wikipédia sont agrégées par axe et normalisées par rapport à leur propre historique, sans dépendre d’une donnée personnelle ou d’un historique propriétaire.',
+      },
+      {
         type: 'table',
         headers: ['Module', 'Rôle', 'Exemple de sortie'],
         rows: [
           ['1. Context Input', 'Recueillir le brief de campagne', 'Localisation, secteur, canal, objectif, audience, produit, message, KPI, ton'],
-          ['2. Context Engine', 'Analyser le contexte', 'Météo, température, pluie, saison, moment de la journée, contexte dominant'],
+          ['2. Context Engine', 'Analyser le contexte via Open-Meteo et Wikimedia Pageviews', 'Météo, température, pluie, attention collective, saison, moment de la journée, contexte dominant'],
           ['3. Prediction Layer', 'Estimer la réceptivité', 'Score de Réceptivité Contextuelle sur 100'],
           ['4. Contextual Gap Detection', 'Identifier l\'écart entre contexte et message', '"Message dynamique alors que le contexte favorise le confort"'],
           ['5. Agent Recommendation', 'Proposer une action argumentée', 'Modifier le message, tester deux variantes, attendre, changer de canal'],
@@ -581,7 +586,7 @@ export const CHAPTERS = [
       },
       {
         type: 'quote',
-        text: '"Un temps parfait pour créer, lire et se faire plaisir à la maison." — Variante proposée par l\'agent',
+        text: '"Un temps parfait pour créer, lire et se faire plaisir à la maison." Variante proposée par l\'agent.',
       },
     ],
   },
@@ -747,7 +752,7 @@ export const CHAPTERS = [
       {
         type: 'callout',
         label: 'La bonne question à se poser',
-        text: '"L\'agent aide-t-il l\'équipe à mieux décider, plus vite, avec plus de contexte ?" — et non "L\'agent peut-il remplacer une équipe marketing ?"',
+        text: '"L\'agent aide-t-il l\'équipe à mieux décider, plus vite, avec plus de contexte ?" et non "L\'agent peut-il remplacer une équipe marketing ?"',
       },
       {
         type: 'h3',
@@ -867,7 +872,7 @@ export const CHAPTERS = [
       {
         type: 'callout',
         label: 'Bonne approche',
-        text: '"Quelles décisions peuvent être assistées par l\'IA sans fragiliser la confiance, la conformité et la qualité marketing ?" — et non "Que peut-on automatiser au maximum ?"',
+        text: '"Quelles décisions peuvent être assistées par l\'IA sans fragiliser la confiance, la conformité et la qualité marketing ?" et non "Que peut-on automatiser au maximum ?"',
       },
       {
         type: 'h3',

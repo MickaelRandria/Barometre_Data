@@ -1,22 +1,16 @@
 import React, { useState, useEffect } from 'react';
-
-const CITIES = [
-  { label: 'Paris',     lat: '48.8566', lon: '2.3522'  },
-  { label: 'Lyon',      lat: '45.7640', lon: '4.8357'  },
-  { label: 'Marseille', lat: '43.2965', lon: '5.3698'  },
-  { label: 'Bordeaux',  lat: '44.8378', lon: '-0.5792' },
-  { label: 'Lille',     lat: '50.6292', lon: '3.0573'  },
-  { label: 'Toulouse',  lat: '43.6047', lon: '1.4442'  },
-];
+import { CITIES } from './data/cities.js';
+import { AxisMetrics, SectorIndicator, Sparkline, SourceLinks, formatViews, getRecentViews } from './TrendEvidence.jsx';
 
 function computeSignal(weather, trends) {
-  if (!weather || !trends) return null;
+  if (!weather || !Array.isArray(trends) || trends.length === 0) return null;
   const temp  = weather.temperature ?? 15;
   const desc  = (weather.description || '').toLowerCase();
   const isCold  = temp < 12;
   const isWarm  = temp > 20;
   const isRainy = desc.includes('pluie') || desc.includes('averses') || desc.includes('orage');
-  const dominant    = trends.reduce((max, t) => (t.value > max.value ? t : max));
+  const rank = (t) => (Number.isFinite(t.attentionIndex) ? t.attentionIndex : t.value);
+  const dominant    = trends.reduce((max, t) => (rank(t) > rank(max) ? t : max));
   const cocooningUp = trends.find((t) => t.keyword === 'cocooning')?.trend === 'up';
   const sortieUp    = trends.find((t) => t.keyword === 'sortie')?.trend === 'up';
   const confidence  = (temp < 10 && cocooningUp) || (temp > 20 && sortieUp) ? 'high' : 'medium';
@@ -24,15 +18,15 @@ function computeSignal(weather, trends) {
   if ((isCold || isRainy) && !isWarm) {
     contextId    = 'cocooning';
     contextLabel = 'Cocooning';
-    contextDesc  = `Météo ${isCold ? 'fraîche' : 'pluvieuse'}${cocooningUp ? ' + tendance cocooning en hausse' : ''} — messages confort et réassurance recommandés.`;
+    contextDesc  = `Météo ${isCold ? 'fraîche' : 'pluvieuse'}${cocooningUp ? ' + tendance cocooning en hausse' : ''} : messages confort et réassurance recommandés.`;
   } else if (isWarm && !isRainy) {
     contextId    = 'energy';
     contextLabel = 'Énergie / Sortie';
-    contextDesc  = `Météo chaude${sortieUp ? ' + tendance sortie en hausse' : ''} — messages dynamiques et orientés activité recommandés.`;
+    contextDesc  = `Météo chaude${sortieUp ? ' + tendance sortie en hausse' : ''} : messages dynamiques et orientés activité recommandés.`;
   } else {
     contextId    = 'neutral';
     contextLabel = 'Neutre';
-    contextDesc  = 'Aucun signal dominant fort — adaptez le message selon votre objectif prioritaire.';
+    contextDesc  = 'Aucun signal dominant fort : adaptez le message selon votre objectif prioritaire.';
   }
   return { dominant: dominant.keyword, confidence, contextId, contextLabel, contextDesc };
 }
@@ -52,7 +46,7 @@ const GeoIcon = () => (
   </svg>
 );
 
-export default function SignauxContextuels() {
+export default function SignauxContextuels({ onAnalyzeContext, onClearCustomArticles, brief }) {
   const [city, setCity]               = useState(CITIES[0]);
   const [customCity, setCustomCity]   = useState(null);
   const [weather, setWeather]         = useState(null);
@@ -60,14 +54,26 @@ export default function SignauxContextuels() {
   const [wLoading, setWLoading]       = useState(false);
   const [tLoading, setTLoading]       = useState(false);
   const [geoError, setGeoError]       = useState(null);
-  const [tFetchedAt, setTFetchedAt]   = useState(null);
+  const [tFetchedAt, setTFetchedAt]     = useState(null);
+  const [tDataThrough, setTDataThrough] = useState(null);
+  const [trendStatus, setTrendStatus]   = useState('unavailable');
+  const [trendSource, setTrendSource]   = useState(null);
+  const [trendReason, setTrendReason]   = useState(null);
+  const [sectorLabel, setSectorLabel]   = useState(null);
+  const [sectorConfidence, setSectorConfidence] = useState('low');
+  const [matchedKeywords, setMatchedKeywords] = useState([]);
+  const [sectorRationale, setSectorRationale] = useState(null);
+  const [weatherSensitive, setWeatherSensitive] = useState(true);
+  const [customMode, setCustomMode] = useState(false);
+  const [customArticleCount, setCustomArticleCount] = useState(0);
+  const [replayNotice, setReplayNotice] = useState(null);
 
   const activeCity = customCity || city;
 
   const fetchWeather = async (c) => {
     setWLoading(true);
     try {
-      const res  = await fetch(`/api/weather?lat=${c.lat}&lon=${c.lon}`);
+      const res  = await fetch(`/api/weather/${c.lat}/${c.lon}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setWeather(data);
@@ -78,19 +84,55 @@ export default function SignauxContextuels() {
     setWLoading(false);
   };
 
-  const fetchTrends = async () => {
+  const fetchTrends = async ({ fresh = false } = {}) => {
     setTLoading(true);
+    if (fresh) setReplayNotice(null);
     try {
-      const res  = await fetch('/api/trends');
+      const params = new URLSearchParams();
+      if (fresh) params.set('fresh', 'true');
+      if (brief?.product) params.set('product', brief.product);
+      if (brief?.message) params.set('message', brief.message);
+      if (brief?.customArticles?.length) params.set('customArticles', JSON.stringify(brief.customArticles));
+      const query = params.toString();
+      const res  = await fetch(`/api/trends${query ? `?${query}` : ''}`, { cache: fresh ? 'no-store' : 'default' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      setTrends(data.trends);
+      setTrends(data.keywords ?? data.trends ?? []);
       setTFetchedAt(data.fetchedAt);
-    } catch { setTrends(null); }
+      setTDataThrough(data.dataThrough ?? null);
+      setTrendStatus(data.status || (data.fallback ? 'seasonal_estimate' : 'live'));
+      setTrendSource(data.source ?? null);
+      setTrendReason(data.reason ?? null);
+      setSectorLabel(data.sectorLabel ?? null);
+      setSectorConfidence(data.sectorConfidence ?? 'low');
+      setMatchedKeywords(data.matchedKeywords ?? []);
+      setSectorRationale(data.sectorRationale ?? null);
+      setWeatherSensitive(data.weatherSensitive !== false);
+      setCustomMode(Boolean(data.customMode));
+      setCustomArticleCount(data.customArticleCount ?? 0);
+      if (fresh) {
+        const articleCount = (data.keywords ?? []).reduce((count, trend) => count + (trend.sourceUrls?.length ?? 0), 0);
+        setReplayNotice(`Requête envoyée à wikimedia.org à l’instant, réponse reçue en ${data.latencyMs ?? 0} ms, ${articleCount} articles interrogés avec succès.`);
+        window.setTimeout(() => setReplayNotice(null), 8_000);
+      }
+    } catch (error) {
+      setTrends(null);
+      setTrendStatus('unavailable');
+      setTrendSource(null);
+      setTrendReason(`Signal collectif indisponible : ${error.message}`);
+      setSectorLabel(null);
+      setSectorConfidence('low');
+      setMatchedKeywords([]);
+      setSectorRationale(null);
+      setWeatherSensitive(true);
+      setCustomMode(false);
+      setCustomArticleCount(0);
+    }
     setTLoading(false);
   };
 
   useEffect(() => { fetchWeather(activeCity); }, [activeCity]);
-  useEffect(() => { fetchTrends(); }, []);
+  useEffect(() => { fetchTrends(); }, [brief?.product, brief?.message]);
 
   const geolocate = () => {
     setGeoError(null);
@@ -105,7 +147,10 @@ export default function SignauxContextuels() {
     );
   };
 
-  const sortedTrends = trends ? [...trends].sort((a, b) => b.value - a.value) : [];
+  // Classement sur l'indice d'attention, pas sur la progression relative.
+  const sortedTrends = trends
+    ? [...trends].sort((x, y) => (Number.isFinite(y.attentionIndex) ? y.attentionIndex : y.value) - (Number.isFinite(x.attentionIndex) ? x.attentionIndex : x.value))
+    : [];
   const signal = computeSignal(weather, trends);
 
   const trendArrow = (t) => t === 'up' ? '↑' : t === 'down' ? '↓' : '→';
@@ -114,6 +159,16 @@ export default function SignauxContextuels() {
     if (!ts) return '';
     const d = new Date(ts);
     return `${d.getHours()}h${String(d.getMinutes()).padStart(2, '0')}`;
+  };
+
+  const fmtDate = (ts) => {
+    if (!ts) return '';
+    return new Date(`${ts}T00:00:00Z`).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+  };
+
+  const fmtFullDate = (ts) => {
+    if (!ts) return '';
+    return new Date(`${ts}T00:00:00Z`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
   };
 
   return (
@@ -159,6 +214,7 @@ export default function SignauxContextuels() {
                   <div className="sc-temp">{Math.round(weather.temperature)}°</div>
                   <div className="sc-desc">{weather.description}</div>
                   <div className="sc-city-name">{activeCity.label}</div>
+                  {weather.fetchedAt && <div className="sc-weather-updated">Actualisé à {fmtTime(weather.fetchedAt)}</div>}
                 </div>
                 <div className="sc-weather-actions">
                   <span className={`sc-live-badge ${weather._live ? 'live' : 'mock'}`}>
@@ -173,19 +229,19 @@ export default function SignauxContextuels() {
               <div className="sc-detail-grid">
                 <div className="sc-detail">
                   <span className="sc-detail-lab">Ressenti</span>
-                  <b className="sc-detail-val">{weather.feelsLike != null ? `${weather.feelsLike}°C` : '—'}</b>
+                  <b className="sc-detail-val">{weather.feelsLike != null ? `${weather.feelsLike}°C` : 'Indisponible'}</b>
                 </div>
                 <div className="sc-detail">
                   <span className="sc-detail-lab">Humidité</span>
-                  <b className="sc-detail-val">{weather.humidity != null ? `${weather.humidity}%` : '—'}</b>
+                  <b className="sc-detail-val">{weather.humidity != null ? `${weather.humidity}%` : 'Indisponible'}</b>
                 </div>
                 <div className="sc-detail">
                   <span className="sc-detail-lab">Vent</span>
-                  <b className="sc-detail-val">{weather.windSpeed != null ? `${weather.windSpeed} km/h` : '—'}</b>
+                  <b className="sc-detail-val">{weather.windSpeed != null ? `${weather.windSpeed} km/h` : 'Indisponible'}</b>
                 </div>
                 <div className="sc-detail">
                   <span className="sc-detail-lab">Précipitations</span>
-                  <b className="sc-detail-val">{weather.precipitation != null ? `${weather.precipitation} mm` : '—'}</b>
+                  <b className="sc-detail-val">{weather.precipitation != null ? `${weather.precipitation} mm` : 'Indisponible'}</b>
                 </div>
               </div>
             </>
@@ -198,29 +254,63 @@ export default function SignauxContextuels() {
         <div className="sc-trends-card">
           <div className="sc-trends-head">
             <div>
-              <div className="sc-card-title">Google Trends</div>
-              <div className="sc-card-sub">France · 7 derniers jours</div>
+              <div className="sc-card-title">{customMode ? 'Wikimedia Pageviews · Sélection personnalisée' : 'Wikimedia Pageviews'}</div>
+              <div className="sc-card-sub">{customMode ? `${customArticleCount} articles choisis manuellement` : 'Attention collective · indice relatif sur 90 jours'}</div>
+              {!customMode && <SectorIndicator sectorLabel={sectorLabel} sectorConfidence={sectorConfidence} matchedKeywords={matchedKeywords} rationale={sectorRationale} weatherSensitive={weatherSensitive} />}
             </div>
-            <button type="button" className="sc-refresh-light" onClick={fetchTrends} title="Actualiser">
-              <RefreshIcon />
-            </button>
+            <div className="sc-trends-actions">
+              {trendStatus === 'live' && (
+                <div className="sc-trends-live-status">
+                  <span className="sc-live-badge live">Live</span>
+                  {tDataThrough && <span>Données jusqu’au {fmtFullDate(tDataThrough)}</span>}
+                </div>
+              )}
+              <button type="button" className="sc-replay-btn" onClick={() => fetchTrends({ fresh: true })} disabled={tLoading}>
+                {tLoading ? 'Requête en cours' : 'Rejouer la requête en direct'}
+              </button>
+              {customMode && <button type="button" className="sc-replay-btn" onClick={onClearCustomArticles}>Revenir au mapping automatique</button>}
+              <button type="button" className="sc-refresh-light" onClick={fetchTrends} title="Actualiser" disabled={tLoading}>
+                <RefreshIcon />
+              </button>
+            </div>
           </div>
+
+          {replayNotice && <p className="sc-replay-notice" role="status">{replayNotice}</p>}
 
           {tLoading ? (
             <div className="sc-skeleton-wrap">
               {[1,2,3,4,5].map(i => <div key={i} className="sc-skeleton sc-skeleton-bar" />)}
             </div>
-          ) : sortedTrends.length > 0 ? (
+          ) : sortedTrends.length > 0 && trendStatus !== 'unavailable' ? (
             <>
               <div className="sc-trends-list">
                 {sortedTrends.map((t) => (
                   <div key={t.keyword} className="sc-trend-row">
-                    <span className="sc-trend-kw">{t.keyword}</span>
-                    <div className="sc-trend-track">
-                      <div className={`sc-trend-fill t-${t.trend}`} style={{ width: `${t.value}%` }} />
+                    <div className="sc-trend-main">
+                      <span className="sc-trend-kw">{t.keyword}</span>
+                      {/* La barre suit l'indice d'attention (volume + progression),
+                          plus la seule progression relative qui inversait le classement. */}
+                      <div className="sc-trend-track">
+                        <div
+                          className={`sc-trend-fill t-${t.trend}`}
+                          style={{ width: `${Number.isFinite(t.attentionIndex) ? t.attentionIndex : t.value}%` }}
+                        />
+                      </div>
+                      {trendStatus === 'live' && <Sparkline rawSeries={t.rawSeries} label={t.keyword} />}
+                      <span
+                        className="sc-trend-num"
+                        title="Indice d’attention : 60 % de volume réel de pages vues, 40 % de progression sur 7 jours."
+                      >
+                        {Number.isFinite(t.attentionIndex) ? t.attentionIndex : t.value}/100
+                      </span>
+                      <span className={`sc-trend-arrow t-${t.trend}`}>{trendArrow(t.trend)}</span>
                     </div>
-                    <span className="sc-trend-num">{t.value}</span>
-                    <span className={`sc-trend-arrow t-${t.trend}`}>{trendArrow(t.trend)}</span>
+                    {trendStatus === 'live' && (
+                      <div className="sc-trend-proof">
+                        <AxisMetrics trend={t} />
+                        <SourceLinks sourceUrls={t.sourceUrls} />
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -231,13 +321,17 @@ export default function SignauxContextuels() {
                   <span className="sc-dominant-kw">{sortedTrends[0].keyword.toUpperCase()}</span>
                   <span className={`sc-trend-arrow t-${sortedTrends[0].trend}`}>{trendArrow(sortedTrends[0].trend)}</span>
                 </div>
-                {tFetchedAt && (
-                  <span className="sc-cache-info">Cache · actualisé à {fmtTime(tFetchedAt)}</span>
+                {trendStatus === 'seasonal_estimate' ? (
+                  <span className="sc-cache-info sc-fallback-info">{trendReason || 'Estimation saisonnière utilisée'}</span>
+                ) : (
+                  <span className="sc-cache-info">
+                    {trendSource || 'Wikipédia'}{tDataThrough ? ` · données jusqu’au ${fmtDate(tDataThrough)}` : ''}{tFetchedAt ? ` · actualisé à ${fmtTime(tFetchedAt)}` : ''}
+                  </span>
                 )}
               </div>
             </>
           ) : (
-            <div className="sc-error-msg-light">Tendances indisponibles</div>
+            <div className="sc-error-msg-light">{trendReason || 'Tendances indisponibles'}</div>
           )}
         </div>
       </div>
@@ -254,6 +348,12 @@ export default function SignauxContextuels() {
           <p className="sc-signal-desc">{signal.contextDesc}</p>
         </div>
       )}
+
+      <div className="sc-brief-action">
+        <button type="button" className="pill-btn neon" onClick={() => onAnalyzeContext?.(activeCity)}>
+          Analyser ce contexte <span aria-hidden="true">↗</span>
+        </button>
+      </div>
     </div>
   );
 }

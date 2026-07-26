@@ -402,12 +402,12 @@ export default function LivreBlanc({ setSection }) {
           </div>
 
           <p className="lb-podcast-tagline">
-            "Écouter plutôt que lire — même contenu, disponible en podcast"
+            "Écouter plutôt que lire : même contenu, disponible en podcast"
           </p>
         </div>
 
         {/* Séparateur */}
-        <div className="lb-podcast-sep">— ou parcourir les chapitres —</div>
+        <div className="lb-podcast-sep">ou parcourir les chapitres</div>
 
         {CHAPTERS.map((ch) => (
           <Chapter
@@ -424,7 +424,7 @@ export default function LivreBlanc({ setSection }) {
               <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
             </svg>
           </div>
-          <p>Livre Blanc V4 — Marketing prédictif & agents IA</p>
+          <p>Livre Blanc V4 : Marketing prédictif & agents IA</p>
           <p className="lb-end-sub">Mickael Randrianandraina · Prototype M2 Data Marketing & IA · Baromètre Data</p>
           <div className="lb-end-actions">
             <a

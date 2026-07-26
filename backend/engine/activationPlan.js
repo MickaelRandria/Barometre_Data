@@ -12,7 +12,7 @@ export function generateActivationPlan(context, brief, scores, recommendation, v
 
   const timing = computeTiming(context, channel);
   const segmentation = computeSegmentation(audience, pressure, scores);
-  const actions = computeActions(channel, contextType, objective, variants);
+  const actions = computeActions(channel, contextType, objective, variants, recommendation.action);
   const guardrail = computeGuardrail(pressure, audience);
 
   return {
@@ -31,11 +31,11 @@ export function generateActivationPlan(context, brief, scores, recommendation, v
     },
     actions,
     guardrail: guardrail.rules,
-    estimatedReach: estimateReach(audience, channel),
+    estimatedReach: formatDeclaredAudience(brief.audienceSize),
     estimatedPerformance: {
-      ctr: estimateCTR(scores.global, channel),
-      openRate: estimateOpenRate(scores.global, channel),
-      conversion: estimateConversion(scores.global, objective),
+      ctr: 'À mesurer après campagne',
+      openRate: 'À mesurer après campagne',
+      conversion: 'À mesurer après campagne',
     },
   };
 }
@@ -106,14 +106,31 @@ function computeSegmentation(audience, pressure, scores) {
       id: 'lookalike',
       label: 'Audience similaire (lookalike)',
       priority: 'secondary',
-      size: '~15-20% de la base',
+      size: 'À définir avec votre base CRM',
     });
   }
 
   return segments;
 }
 
-function computeActions(channel, contextType, objective, variants) {
+function computeActions(channel, contextType, objective, variants, recommendationAction) {
+  if (recommendationAction === 'REPORTER') {
+    return [
+      {
+        step: 1,
+        action: 'Suspendre l’activation',
+        detail: 'Ne pas diffuser la campagne tant que les contradictions produit, message et météo ne sont pas corrigées.',
+        status: 'blocked',
+      },
+      {
+        step: 2,
+        action: 'Réécrire le brief',
+        detail: `Reprendre le produit et le message avant de tester la variante « ${variants.bestVariant} » sur un nouveau contexte.`,
+        status: 'pending',
+      },
+    ];
+  }
+
   const actions = [];
 
   actions.push({
@@ -205,57 +222,12 @@ function getAudienceLabel(audience) {
   return labels[audience] || audience;
 }
 
-function getAudienceSize(audience) {
-  const sizes = {
-    'clients-actifs': '~45% de la base',
-    'clients-inactifs': '~25% de la base',
-    'paniers-abandonnes': '~8% de la base',
-    'top-clients': '~10% de la base',
-    'prospects': '~30% de la base (cold)',
-    'clients-chauds': '~15% de la base',
-  };
-  return sizes[audience] || '~20% de la base';
+function getAudienceSize() {
+  return 'À définir avec votre base CRM';
 }
 
-function estimateReach(audience, channel) {
-  const baseReach = {
-    'clients-actifs': 85,
-    'clients-inactifs': 40,
-    'paniers-abandonnes': 70,
-    'top-clients': 90,
-    'prospects': 30,
-    'clients-chauds': 80,
-  };
-  const channelFactor = {
-    email: 0.95,
-    sms: 0.85,
-    push: 0.60,
-    'paid-social': 0.45,
-    homepage: 0.30,
-  };
-
-  const base = baseReach[audience] || 50;
-  const factor = channelFactor[channel] || 0.7;
-  return `${Math.round(base * factor)}% estimé`;
-}
-
-function estimateCTR(globalScore, channel) {
-  const baseCTR = { email: 3.2, sms: 8.5, push: 5.1, 'paid-social': 1.8, homepage: 12.0 };
-  const base = baseCTR[channel] || 3.0;
-  const multiplier = globalScore >= 80 ? 1.25 : globalScore >= 60 ? 1.1 : globalScore >= 40 ? 1.0 : 0.85;
-  return `${(base * multiplier).toFixed(1)}% estimé`;
-}
-
-function estimateOpenRate(globalScore, channel) {
-  if (channel !== 'email') return 'N/A';
-  const base = 22;
-  const bonus = globalScore >= 80 ? 8 : globalScore >= 60 ? 4 : 0;
-  return `${base + bonus}% estimé`;
-}
-
-function estimateConversion(globalScore, objective) {
-  if (objective !== 'conversion') return 'N/A (objectif non-conversion)';
-  const base = 2.1;
-  const multiplier = globalScore >= 80 ? 1.3 : globalScore >= 60 ? 1.1 : 0.9;
-  return `${(base * multiplier).toFixed(1)}% estimé`;
+function formatDeclaredAudience(audienceSize) {
+  const total = Number(audienceSize);
+  if (Number.isInteger(total) && total > 0) return `${total.toLocaleString('fr-FR')} contacts déclarés`;
+  return 'À définir selon votre base CRM';
 }

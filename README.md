@@ -1,12 +1,12 @@
 # Baromètre Data — Agent Marketing Contextuel
 
-Prototype d'agent marketing contextuel : à partir d'un brief de campagne (produit, message, audience, canal, objectif, pression) et de la météo en temps réel, il calcule un score de réceptivité contextuelle, détecte les décalages message ↔ contexte, génère des variantes de message, un plan d'activation, un plan A/B test, vérifie les garde-fous RGPD et simule un learning loop post-campagne.
+Prototype d'agent marketing contextuel : à partir d'un brief de campagne (produit, message, audience, canal, objectif, pression) et de la météo en temps réel, il calcule un score de réceptivité contextuelle, détecte les décalages message ↔ contexte, génère des variantes de message, un plan d'activation, un plan A/B test, vérifie les garde-fous RGPD et calcule les enseignements post-campagne à partir de résultats saisis.
 
 ## Stack
 
 - **Frontend** : React 18 + Vite 5
 - **Backend** : Node.js + Express 4 (ES modules)
-- **API externe** : OpenWeather (avec fallback mock saisonnier si pas de clé)
+- **APIs externes** : Open-Meteo pour la météo live et Wikimedia Pageviews pour l'attention collective
 
 ## Structure
 
@@ -48,17 +48,12 @@ cd ../frontend
 npm install
 ```
 
-## Configuration
+## Données externes et transparence
 
-Créer un fichier `backend/.env` à partir de `.env.example` :
-
-```
-PORT=3001
-OPENWEATHER_API_KEY=demo
-NODE_ENV=development
-```
-
-Avec `OPENWEATHER_API_KEY=demo`, le backend retourne des données météo simulées (mock saisonnier réaliste). Pour utiliser de vraies données, créer une clé gratuite sur [openweathermap.org](https://openweathermap.org/api).
+- La météo provient d’Open-Meteo, sans cache applicatif. L’interface affiche l’heure de récupération et identifie clairement tout fallback météo comme simulé.
+- Le signal collectif provient de Wikimedia Pageviews sur des articles Wikipédia français, agrégés par axe d'intention. Chaque axe compare sa moyenne des 7 derniers jours à sa propre moyenne sur 90 jours, avec des données arrêtées à J-2 pour respecter leur latence de publication.
+- Le statut est `live` seulement si au moins trois axes disposent de données Wikimedia. Sinon, l'application affiche explicitement une estimation saisonnière fondée sur la météo et le calendrier. Ce repli ne doit jamais être interprété comme une donnée Wikimedia live.
+- La Learning Loop ne simule pas de campagne. Les métriques et enseignements ne sont calculés qu’après saisie des résultats réels de campagne.
 
 ## Lancement
 
@@ -82,6 +77,7 @@ Puis ouvrir [http://localhost:3000](http://localhost:3000).
 | --- | --- | --- |
 | `GET` | `/api/health` | Santé de l'API |
 | `GET` | `/api/weather/:lat/:lon` | Météo brute pour une position |
+| `GET` | `/api/trends` | Signal collectif Wikimedia Pageviews et son statut |
 | `POST` | `/api/agent` | Pipeline agent complet (10 modules) |
 | `POST` | `/api/analyze` | Version simplifiée (legacy) |
 

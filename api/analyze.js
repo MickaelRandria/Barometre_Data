@@ -18,7 +18,13 @@ export default function handler(req, res) {
     const gap = detectContextualGap(context, brief, scores);
 
     res.json({
+      // null quand aucun signal n'est mesurable : l'endpoint legacy ne
+      // fabrique pas davantage de chiffre que le pipeline principal.
       contextualScore: scores.global,
+      contextualScoreDisplay: scores.displayGlobal,
+      status: scores.status,
+      dataConfidence: scores.dataConfidence.level,
+      nonDiscriminant: scores.nonDiscriminant,
       interpretation: scores.interpretation,
       context: {
         type: context.contextType.label,

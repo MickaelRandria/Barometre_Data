@@ -37,14 +37,14 @@ function buildAgenticMessage(context, product, hasCriticalMismatch) {
   return `Découvrez « ${product} » et trouvez la sélection qui vous ressemble.`;
 }
 
-function getMaxLength(channel) {
+export function getMaxLength(channel) {
   if (channel === 'sms') return 160;
   if (channel === 'push') return 120;
   if (channel === 'email') return 500;
   return 300;
 }
 
-function truncate(text, maxLength) {
+export function truncate(text, maxLength) {
   if (text.length <= maxLength) return text;
   return `${text.slice(0, Math.max(0, maxLength - 1)).trimEnd()}…`;
 }

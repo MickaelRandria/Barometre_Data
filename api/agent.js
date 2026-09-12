@@ -5,6 +5,7 @@ import { calculateScores } from '../backend/engine/predictionLayer.js';
 import { detectContextualGap } from '../backend/engine/gapDetection.js';
 import { generateRecommendation } from '../backend/engine/agentRecommendation.js';
 import { generateVariants } from '../backend/engine/variantGenerator.js';
+import { generateVariantsWithLLM } from '../backend/engine/variantGeneratorLLM.js';
 import { generateActivationPlan } from '../backend/engine/activationPlan.js';
 import { generateABTestPlan } from '../backend/engine/abTestPlan.js';
 import { evaluateGuardrails } from '../backend/engine/guardrails.js';
@@ -77,7 +78,11 @@ export default async function handler(req, res) {
     const scores         = calculateScores(context, brief);
     const gap            = detectContextualGap(context, brief, scores);
     const recommendation = generateRecommendation(context, brief, scores, gap);
-    const variants       = generateVariants(context, brief, scores, recommendation);
+    // Couche Ministral strictement opt-in : sans `useMistral`, le pipeline
+    // reste exactement celui d'avant, sans aucun appel réseau supplémentaire.
+    const variants       = brief.useMistral === true
+      ? await generateVariantsWithLLM(context, brief, scores, recommendation)
+      : generateVariants(context, brief, scores, recommendation);
     const activation     = generateActivationPlan(context, brief, scores, recommendation, variants);
     const abTest         = generateABTestPlan(context, brief, scores, variants);
     const guardrails     = evaluateGuardrails(context, brief);

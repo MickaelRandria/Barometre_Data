@@ -303,7 +303,7 @@ function BriefQualification({ issues, onFocusField, onDismiss, onSubmitAnyway })
   );
 }
 
-function BriefForm({ brief, onChange, onSubmit, loading, error, qualifying, qualIssues = [], onDismissQualification, onSubmitAnyway }) {
+function BriefForm({ brief, onChange, onSubmit, loading, error, qualifying, qualIssues = [], onDismissQualification, onSubmitAnyway, autoFocusField, onAutoFocusDone }) {
   const [geoError, setGeoError] = useState(null);
   const [description, setDescription] = useState('');
   const [parsing, setParsing] = useState(false);
@@ -319,6 +319,13 @@ function BriefForm({ brief, onChange, onSubmit, loading, error, qualifying, qual
     node.scrollIntoView({ behavior: 'smooth', block: 'center' });
     node.focus({ preventScroll: true });
   }, []);
+
+  // Arrivée depuis le Plan A/B Test : on amène l'utilisateur sur le champ visé.
+  useEffect(() => {
+    if (!autoFocusField) return;
+    focusField(autoFocusField);
+    onAutoFocusDone?.();
+  }, [autoFocusField, focusField, onAutoFocusDone]);
 
   /**
    * Pré-remplit le formulaire depuis la description libre. En cas d'échec, on le
@@ -576,7 +583,7 @@ function BriefForm({ brief, onChange, onSubmit, loading, error, qualifying, qual
           </select>
         </Field>
         <Field label="Taille de l’audience (optionnel)">
-          <input type="number" min="1" value={brief.audienceSize} onChange={(e) => onChange('audienceSize', e.target.value)} placeholder="Ex. 25000" />
+          <input ref={(node) => { fieldRefs.current.audienceSize = node; }} type="number" min="1" value={brief.audienceSize} onChange={(e) => onChange('audienceSize', e.target.value)} placeholder="Ex. 25000" />
         </Field>
         <Field label="Ville">
           <div className="brief-location-controls">
@@ -972,61 +979,186 @@ function RecommendationPanel({ recommendation }) {
 }
 
 /* ---------- GAP ---------- */
-function GapPanel({ gap }) {
-  const level = gap.gapLevel === 'none' ? 'Aucun' : gap.gapLevel.charAt(0).toUpperCase() + gap.gapLevel.slice(1);
-  return (
-    <Card title="Contextual Gap Detection" sub="Écarts message ↔ contexte" col={12}>
-      <div className={`gap-summary gap-level-${gap.gapLevel}`}>
-        <p className="gap-level-label">Niveau : {level}</p>
-        <p>{gap.summary}</p>
-      </div>
-      {gap.gaps && gap.gaps.length > 0 && (
-        <div className="gap-list">
-          {gap.gaps.map((g, i) => (
-            <div key={i} className={`gap-item severity-${g.severity}`}>
-              <div className="gap-item-header">
-                <span className="gap-type">{g.label}</span>
-                <span className={`severity-badge ${g.severity}`}>{g.severity}</span>
-              </div>
-              <p>{g.detail}</p>
-            </div>
-          ))}
-        </div>
-      )}
-      <div className="gap-footer">
-        <p><strong>Risque :</strong> {gap.risk}</p>
-        <p><strong>Recommandation :</strong> {gap.recommendation}</p>
-      </div>
-    </Card>
-  );
-}
+/* ---------- ANALYSE : diagnostic + contexte (rangée haute 2/3 — 1/3) ---------- */
 
-/* ---------- VARIANTS ---------- */
-function VariantsPanel({ variants }) {
+/** Paliers du gap, du plus sain au plus grave. */
+const GAP_LEVELS = {
+  none: { word: 'Alignement optimal', tone: 'ok', drift: '0 %' },
+  moyen: { word: 'Décalage modéré', tone: 'warn', drift: 'modéré' },
+  fort: { word: 'Décalage fort', tone: 'bad', drift: 'fort' },
+  critique: { word: 'Décalage critique', tone: 'crit', drift: 'critique' },
+};
+
+/** Familles d'action — le néon reste réservé au seul feu vert. */
+const ACTION_TONE = {
+  ACTIVER: 'go', OPTIMISER: 'tune', ADAPTER: 'tune', REPORTER: 'stop', COMPLÉTER: 'info',
+};
+
+function GapDiagnostic({ gap, recommendation }) {
+  const level = GAP_LEVELS[gap.gapLevel] ?? GAP_LEVELS.none;
+  const action = recommendation?.action ?? null;
+  const count = gap.gaps?.length ?? 0;
+
+  // La justification remplace l'accordéon : quelques chips techniques suffisent.
+  const chips = [
+    { k: 'gaps', v: count === 0 ? 'aucun décalage' : `${count} décalage${count > 1 ? 's' : ''}` },
+    // Le détail complet reste accessible en infobulle, faute d'accordéon.
+    ...(gap.gaps ?? []).slice(0, 3).map((g, i) => ({ k: `g${i}`, v: g.label, sev: g.severity, tip: g.detail })),
+  ];
+
   return (
-    <Card title="Variantes de message" sub="Propositions générées par l'agent" col={12}>
-      <p className="variants-reasoning">{variants.reasoning}</p>
-      <div className="variants-grid">
-        {variants.variants.map((v) => (
-          <div key={v.id} className={`variant-card ${v.id === variants.bestVariant ? 'best' : ''}`}>
-            {v.id === variants.bestVariant && <span className="best-badge">Recommandée</span>}
-            <h4>{v.label}</h4>
-            <p className="variant-desc">{v.description}</p>
-            <blockquote className="variant-msg">{v.message}</blockquote>
-            <div className="variant-meta">
-              <span>Ton : {v.tone}</span>
-              {Number.isFinite(v.score) && <span>Score : {v.score}/100</span>}
-              <span className="variant-lift">{v.expectedLift}</span>
-            </div>
-            {v.scoreBasis && <p className="variant-basis">{v.scoreBasis}</p>}
-          </div>
+    <section className={`card an-card col-8 status-${level.tone}`}>
+      <header className="an-head">
+        <div className="an-head-titles">
+          <h3>Contextual Gap Diagnostic</h3>
+          <span className="an-sub">Écarts message ↔ contexte réel</span>
+        </div>
+        <span className="an-drift mono">Décalage : {level.drift}</span>
+      </header>
+
+      <div className="diag-status">
+        <span className="diag-dot" aria-hidden="true" />
+        <span className="diag-label">Status : {level.word}</span>
+        {action && <span className={`diag-action act-${ACTION_TONE[action] ?? 'info'}`}>{action}</span>}
+      </div>
+
+      <p className="diag-line">{gap.summary}</p>
+
+      <div className="chips">
+        {chips.map((c) => (
+          <span key={c.k} className={`chip ${c.sev ? `chip-${c.sev}` : ''}`} title={c.tip}>{c.v}</span>
         ))}
       </div>
-    </Card>
+
+      <dl className="diag-facts">
+        <div><dt>Risque</dt><dd>{gap.risk}</dd></div>
+        <div><dt>Recommandation</dt><dd>{gap.recommendation}</dd></div>
+      </dl>
+    </section>
   );
 }
 
-/* ---------- ACTIVATION ---------- */
+function ContextPanel({ context, channel }) {
+  const w = context.weather ?? {};
+  const delta = context.seasonalNormal?.delta;
+  const rows = [
+    { k: 'Météo', v: `${w.temperature ?? '—'} °C`, ctx: `${w.description ?? 'non disponible'} · ${context.season?.label ?? ''}` },
+    {
+      k: 'Écart normale',
+      v: Number.isFinite(delta) ? `${delta > 0 ? '+' : ''}${delta} °C` : '—',
+      ctx: context.seasonalNormal?.expected != null ? `${context.seasonalNormal.expected} °C attendus` : 'non calculé',
+    },
+    {
+      k: 'Intention',
+      v: context.trendsSignal?.dominant ?? '—',
+      ctx: context.trendsStatus === 'ok' ? 'signal Wikimedia' : 'signal indisponible',
+    },
+    { k: 'Canal', v: channel ?? '—', ctx: context.contextType?.label ?? '' },
+  ];
+
+  return (
+    <section className="card an-card col-4">
+      <header className="an-head">
+        <div className="an-head-titles">
+          <h3>Contexte actif</h3>
+          <span className="an-sub">Signaux observés</span>
+        </div>
+        <span className={`an-live mono ${w._live ? 'on' : ''}`}>{w._live ? 'LIVE' : 'FALLBACK'}</span>
+      </header>
+      <dl className="ctx-list">
+        {rows.map((r) => (
+          <div key={r.k} className="ctx-row">
+            <dt>{r.k}</dt>
+            <dd><span className="ctx-val mono">{r.v}</span><span className="ctx-ctx">{r.ctx}</span></dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
+/* ---------- VARIANTES (preview du message recommandé) ---------- */
+
+const CHANNEL_LABEL = { email: 'Email', sms: 'SMS', push: 'Push', 'paid-social': 'Social Ads', homepage: 'Homepage' };
+
+function CopyButton({ text }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      setCopied(false);
+    }
+  };
+  return (
+    <button type="button" className="copy-btn" onClick={copy} aria-label="Copier le message">
+      {copied ? 'Copié' : 'Copier'}
+    </button>
+  );
+}
+
+function VariantsPanel({ variants, channel }) {
+  const best = variants.variants.find((v) => v.id === variants.bestVariant) ?? variants.variants[0];
+  const standard = variants.variants.find((v) => v.id === 'standard');
+  const alternatives = variants.variants.filter((v) => v !== best && v !== standard);
+
+  return (
+    <section className="card an-card col-6">
+      <header className="an-head">
+        <div className="an-head-titles">
+          <h3>Variantes de message</h3>
+          <span className="an-sub">Standard vs contextualisé</span>
+        </div>
+        {/* La mise en garde devient une puce d'info au survol, plus un bandeau. */}
+        <span
+          className="an-info mono"
+          tabIndex={0}
+          title="Aucune projection chiffrée. Chaque variante est une hypothèse : la pertinence doit être validée par un test avec groupe de contrôle."
+        >
+          ⓘ non projeté
+        </span>
+      </header>
+
+      <div className="msg-preview">
+        <div className="msg-preview-bar">
+          <span className="msg-chan mono">{CHANNEL_LABEL[channel] ?? 'Message'}</span>
+          <span className="badge-neon">Recommandée</span>
+          <CopyButton text={best.message} />
+        </div>
+        <p className="msg-body">{best.message}</p>
+        <div className="msg-meta mono" title={[best.description, best.scoreBasis].filter(Boolean).join(' — ')}>
+          <span>Ton : {best.tone}</span>
+          <span>·</span>
+          <span>{best.label}</span>
+          {best.source && <><span>·</span><span>{best.source === 'mistral' ? 'agent' : 'gabarit'}</span></>}
+        </div>
+      </div>
+
+      <div className="chips">
+        <span className="chip">{best.expectedLift}</span>
+        <span className="chip">{variants.contextType}</span>
+        {Number.isFinite(best.score) && <span className="chip mono">{best.score}/100</span>}
+      </div>
+
+      {standard && (
+        <div className="msg-compare">
+          <span className="msg-compare-lab mono" title={standard.description}>Standard (original)</span>
+          <p>{standard.message}</p>
+        </div>
+      )}
+
+      {alternatives.map((v) => (
+        <div className="msg-compare" key={v.id}>
+          <span className="msg-compare-lab mono" title={[v.description, v.scoreBasis].filter(Boolean).join(' — ')}>{v.label}</span>
+          <p>{v.message}</p>
+        </div>
+      ))}
+    </section>
+  );
+}
+
 function ActivationPanel({ activation }) {
   return (
     <Card title="Plan d'activation" sub="Déploiement opérationnel" col={12}>
@@ -1070,40 +1202,60 @@ function ActivationPanel({ activation }) {
 }
 
 /* ---------- A/B TEST ---------- */
-function ABTestPanel({ abTest }) {
+/* ---------- PLAN D'EXPÉRIMENTATION & MESURE ---------- */
+
+function ABTestPanel({ abTest, onGoToBrief }) {
+  const provided = abTest.population.isProvided;
+
   return (
-    <Card title="Plan A/B Test" sub="Hypothèse & mesure" col={12}>
-      <div className="ab-hypothesis">
-        <p><strong>H0 :</strong> {abTest.hypothesis.h0}</p>
-        <p><strong>H1 :</strong> {abTest.hypothesis.h1}</p>
-      </div>
-      <div className="ministats" style={{ marginTop: 14 }}>
-        <div className="ministat">
-          <span className="lab">Population</span>
-          <span className="big" style={{ fontSize: 22 }}>{abTest.population.testSize}</span>
-          <span className="ctx">{abTest.population.note}</span>
+    <section className="card an-card col-6">
+      <header className="an-head">
+        <div className="an-head-titles">
+          <h3>Plan d’expérimentation & mesure</h3>
+          <span className="an-sub">A/B, échantillon, durée</span>
         </div>
-        <div className="ministat">
-          <span className="lab">Durée</span>
-          <span className="big" style={{ fontSize: 22 }}>{abTest.duration.label}</span>
-          <span className="ctx">{abTest.statisticalSignificance}</span>
+        <span className={`an-info mono ${provided ? '' : 'muted'}`}>{provided ? 'dimensionné' : 'à dimensionner'}</span>
+      </header>
+
+      <div className="ab-kpis">
+        <div className="ab-kpi">
+          <span className="ab-kpi-lab">Échantillon</span>
+          <span className="ab-kpi-val mono">{abTest.population.testSize}</span>
+          <span className="ab-kpi-ctx">{abTest.population.perGroup}</span>
+        </div>
+        <div className="ab-kpi">
+          <span className="ab-kpi-lab">Durée estimée</span>
+          <span className="ab-kpi-val mono">{abTest.duration.label}</span>
         </div>
       </div>
-      <h4 className="sub-h">Groupes</h4>
+
+      {!provided && (
+        <button type="button" className="inline-cta" onClick={onGoToBrief}>
+          Renseignez le champ « Taille de l’audience » du Brief <Icon.arrow />
+        </button>
+      )}
+
+      <div className="ab-hyp">
+        <div><span className="mono">H0</span><p>{abTest.hypothesis.h0}</p></div>
+        <div><span className="mono">H1</span><p>{abTest.hypothesis.h1}</p></div>
+      </div>
+
       <div className="ab-groups">
         {abTest.groups.map((g) => (
           <div key={g.id} className="ab-group">
-            <span className="group-id">{g.id}</span>
+            <span className="group-id mono">{g.id}</span>
             <span className="group-label">{g.label}</span>
-            <span className="group-alloc">{g.allocation}</span>
+            <span className="group-alloc mono">{g.allocation}</span>
           </div>
         ))}
       </div>
-    </Card>
+
+      <p className="an-foot-note">{abTest.statisticalSignificance}</p>
+      {abTest.recommendation && <p className="an-foot-note">{abTest.recommendation}</p>}
+    </section>
   );
 }
 
-/* ---------- GUARDRAILS ---------- */
 function GuardrailsPanel({ guardrails }) {
   const statusIcon = (s) => s === 'ok' ? <Icon.check /> : s === 'blocked' ? <Icon.ban /> : <Icon.warn />;
   return (
@@ -1138,23 +1290,66 @@ function GuardrailsPanel({ guardrails }) {
 }
 
 /* ---------- LEARNING ---------- */
+/* ---------- LEARNING LOOP (matrice de réconciliation A/B) ---------- */
+
+const LEARNING_ROWS = [
+  { key: 'sent', label: 'Volume envoyé', kind: 'count', required: true },
+  { key: 'opened', label: 'Ouvertures', kind: 'rate', required: true },
+  { key: 'clicked', label: 'Clics', kind: 'rate', required: true },
+  { key: 'converted', label: 'Conversions', kind: 'rate', required: true },
+  { key: 'unsubscribed', label: 'Désabonnements', kind: 'rate', required: false },
+];
+
+const EMPTY_COLUMN = { sent: '', opened: '', clicked: '', converted: '', unsubscribed: '' };
+
+/** Taux d'une métrique rapporté au volume envoyé de sa propre colonne. */
+function rateOf(column, key) {
+  const sent = Number(column.sent);
+  const value = Number(column[key]);
+  if (!Number.isFinite(sent) || sent <= 0 || column[key] === '' || !Number.isFinite(value)) return null;
+  return (value / sent) * 100;
+}
+
+/**
+ * Δ affiché : écart absolu pour un volume, écart en points de pourcentage pour
+ * un taux. Calculé côté client à partir des chiffres saisis — l'agent ne
+ * projette toujours aucun gain.
+ */
+function deltaFor(a, b, row) {
+  if (row.kind === 'count') {
+    if (a.sent === '' || b.sent === '') return null;
+    const diff = Number(b.sent) - Number(a.sent);
+    if (!Number.isFinite(diff)) return null;
+    return { text: `${diff >= 0 ? '+' : ''}${diff.toLocaleString('fr-FR')}`, sign: Math.sign(diff) };
+  }
+  const ra = rateOf(a, row.key);
+  const rb = rateOf(b, row.key);
+  if (ra === null || rb === null) return null;
+  const diff = Math.round((rb - ra) * 10) / 10;
+  // Un désabonnement qui monte est une mauvaise nouvelle : le signe s'inverse.
+  const sign = row.key === 'unsubscribed' ? -Math.sign(diff) : Math.sign(diff);
+  return { text: `${diff >= 0 ? '+' : ''}${diff} pt`, sign };
+}
+
 function LearningPanel({ learning, onLearningCalculated }) {
-  const [campaignData, setCampaignData] = useState({ sent: '', opened: '', clicked: '', converted: '', unsubscribed: '', variant: 'non renseignée' });
+  const [columns, setColumns] = useState({ a: { ...EMPTY_COLUMN }, b: { ...EMPTY_COLUMN } });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const hasResults = learning?.status === 'calculated_from_user_input';
 
-  const updateCampaignData = (field, value) => setCampaignData((previous) => ({ ...previous, [field]: value }));
+  const update = (col, key, value) => setColumns((prev) => ({ ...prev, [col]: { ...prev[col], [key]: value } }));
 
   const submitResults = async (event) => {
     event.preventDefault();
     setLoading(true);
     setError(null);
     try {
+      // L'API analyse UN jeu de métriques : on lui envoie la variante testée (B).
+      // La colonne A ne sert qu'au calcul des écarts affichés dans la matrice.
       const response = await fetch('/api/learning', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(campaignData),
+        body: JSON.stringify({ ...columns.b, variant: 'contextualisée' }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || `Erreur ${response.status}`);
@@ -1167,32 +1362,89 @@ function LearningPanel({ learning, onLearningCalculated }) {
   };
 
   return (
-    <Card title="Learning Loop" sub="Résultats de campagne saisis" col={12}>
-      {!hasResults && <p className="learning-empty">Renseignez les résultats de votre campagne pour obtenir les enseignements de l’agent.</p>}
+    <section className="card an-card col-12">
+      <header className="an-head">
+        <div className="an-head-titles">
+          <h3>Learning Loop</h3>
+          <span className="an-sub">Réconciliation des métriques réelles</span>
+        </div>
+        <span
+          className="an-info mono muted"
+          tabIndex={0}
+          title="Les enseignements de l’agent sont calculés sur la colonne B (variante testée). La colonne A sert uniquement au calcul des écarts affichés."
+        >
+          B analysée
+        </span>
+      </header>
 
-      <form className="learning-form" onSubmit={submitResults}>
-        <label><span>Envoyés</span><input type="number" min="1" required value={campaignData.sent} onChange={(e) => updateCampaignData('sent', e.target.value)} /></label>
-        <label><span>Ouverts</span><input type="number" min="0" required value={campaignData.opened} onChange={(e) => updateCampaignData('opened', e.target.value)} /></label>
-        <label><span>Cliqués</span><input type="number" min="0" required value={campaignData.clicked} onChange={(e) => updateCampaignData('clicked', e.target.value)} /></label>
-        <label><span>Convertis</span><input type="number" min="0" required value={campaignData.converted} onChange={(e) => updateCampaignData('converted', e.target.value)} /></label>
-        <label><span>Désabonnés</span><input type="number" min="0" value={campaignData.unsubscribed} onChange={(e) => updateCampaignData('unsubscribed', e.target.value)} /></label>
-        <button type="submit" className="pill-btn dark" disabled={loading}>{loading ? 'Calcul en cours…' : 'Calculer les enseignements'}</button>
+      <form onSubmit={submitResults}>
+        <div className="matrix-wrap">
+          <table className="matrix">
+            <thead>
+              <tr>
+                <th scope="col">Métrique</th>
+                <th scope="col">Contrôle (A)</th>
+                <th scope="col">Variante contextuelle (B)</th>
+                <th scope="col">Δ estimé</th>
+              </tr>
+            </thead>
+            <tbody>
+              {LEARNING_ROWS.map((row) => {
+                const delta = deltaFor(columns.a, columns.b, row);
+                const rateB = row.kind === 'rate' ? rateOf(columns.b, row.key) : null;
+                const trend = delta ? (delta.sign > 0 ? 'up' : delta.sign < 0 ? 'down' : '') : '';
+                return (
+                  <tr key={row.key}>
+                    <th scope="row">
+                      <span className="matrix-metric">{row.label}</span>
+                      {rateB !== null && <span className="matrix-rate mono">{Math.round(rateB * 10) / 10} %</span>}
+                    </th>
+                    {['a', 'b'].map((col) => (
+                      <td key={col}>
+                        <input
+                          className="matrix-input mono"
+                          type="number"
+                          min={row.key === 'sent' ? 1 : 0}
+                          required={row.required && col === 'b'}
+                          value={columns[col][row.key]}
+                          onChange={(event) => update(col, row.key, event.target.value)}
+                          aria-label={`${row.label}, colonne ${col.toUpperCase()}`}
+                        />
+                      </td>
+                    ))}
+                    <td className={`matrix-delta mono ${trend}`}>{delta ? delta.text : '—'}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colSpan={4}>
+                  <div className="matrix-foot">
+                    <button type="submit" className="pill-btn dark" disabled={loading}>
+                      {loading ? 'Calcul en cours…' : 'Calculer l’impact'}
+                    </button>
+                    {error && <span className="matrix-error">{error}</span>}
+                  </div>
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
       </form>
-      {error && <p className="brief-error">{error}</p>}
 
       {hasResults && <>
         <div className="ministats">
-          <div className="ministat"><span className="lab">Envoyés</span><span className="big">{learning.metrics.sent.toLocaleString()}</span></div>
-          <div className="ministat mint"><span className="lab">Ouverts</span><span className="big">{learning.metrics.opened.toLocaleString()}</span><span className="ctx">{learning.metrics.openRate}%</span></div>
-          <div className="ministat neon"><span className="lab">Cliqués</span><span className="big">{learning.metrics.clicked.toLocaleString()}</span><span className="ctx">CTR {learning.metrics.ctr}%</span></div>
-          <div className="ministat dark"><span className="lab">Convertis</span><span className="big">{learning.metrics.converted.toLocaleString()}</span><span className="ctx">{learning.metrics.conversionRate}%</span></div>
+          <div className="ministat"><span className="lab">Envoyés</span><span className="big mono">{learning.metrics.sent.toLocaleString()}</span></div>
+          <div className="ministat mint"><span className="lab">Ouverts</span><span className="big mono">{learning.metrics.opened.toLocaleString()}</span><span className="ctx">{learning.metrics.openRate}%</span></div>
+          <div className="ministat neon"><span className="lab">Cliqués</span><span className="big mono">{learning.metrics.clicked.toLocaleString()}</span><span className="ctx">CTR {learning.metrics.ctr}%</span></div>
+          <div className="ministat dark"><span className="lab">Convertis</span><span className="big mono">{learning.metrics.converted.toLocaleString()}</span><span className="ctx">{learning.metrics.conversionRate}%</span></div>
         </div>
         <div className="learning-verdict">
-          <p className="verdict-score">Score de performance calculé : {learning.performance.overallScore}/100</p>
+          <p className="verdict-score mono">Score de performance calculé : {learning.performance.overallScore}/100</p>
           <p>{learning.performance.verdict}</p>
           <p className="learning-method">{learning.performance.methodology}</p>
         </div>
-        <h4 className="sub-h">Enseignements issus des résultats saisis</h4>
         <div className="learnings-list">
           {learning.learnings.map((item, index) => (
             <div key={index} className={`learning-item learning-${item.type}`}>
@@ -1202,11 +1454,32 @@ function LearningPanel({ learning, onLearningCalculated }) {
           ))}
         </div>
       </>}
-    </Card>
+    </section>
   );
 }
 
-/* ---------- CTA ---------- */
+/* ---------- FOOTER TECHNIQUE DE LA VUE ANALYSE ---------- */
+
+function AnalysisFooter({ meta, context, onExport }) {
+  const stamp = meta?.analyzedAt ? new Date(meta.analyzedAt).toLocaleString('fr-FR') : '—';
+  const weatherLive = Boolean(context?.weather?._live);
+  const trendsOk = context?.trendsStatus === 'ok';
+  return (
+    <footer className="an-footer col-12">
+      <span className="mono">modèle v{meta?.version ?? '—'}</span>
+      <span className="an-sep">·</span>
+      <span className="mono">{stamp}</span>
+      <span className="an-sep">·</span>
+      <span className={`an-dot ${weatherLive ? 'on' : 'off'}`} aria-hidden="true" />
+      <span>Météo {weatherLive ? 'live' : 'repli'}</span>
+      <span className="an-sep">·</span>
+      <span className={`an-dot ${trendsOk ? 'on' : 'off'}`} aria-hidden="true" />
+      <span>Signal {trendsOk ? 'actif' : 'indisponible'}</span>
+      <button type="button" className="an-footer-link" onClick={onExport}>Exporter le JSON</button>
+    </footer>
+  );
+}
+
 function CTAReset({ onReset }) {
   return (
     <section className="card cta col-12 in" style={{ opacity: 1, transform: 'none' }}>
@@ -1249,6 +1522,8 @@ function App() {
   const [error, setError] = useState(null);
   const [qualifying, setQualifying] = useState(false);
   const [qualIssues, setQualIssues] = useState([]);
+  // Champ du Brief à mettre au point après une navigation depuis une autre vue.
+  const [autoFocusField, setAutoFocusField] = useState(null);
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -1345,6 +1620,12 @@ function App() {
     analyzeBrief(automaticBrief);
   };
 
+  /** Renvoie l'utilisateur sur le champ « Taille de l'audience » du Brief. */
+  const goToAudienceSize = () => {
+    setAutoFocusField('audienceSize');
+    navigateToSection('brief');
+  };
+
   const handleReset = () => {
     setResult(null);
     setQualIssues([]);
@@ -1427,6 +1708,8 @@ function App() {
               error={error}
               qualifying={qualifying}
               qualIssues={qualIssues}
+              autoFocusField={autoFocusField}
+              onAutoFocusDone={() => setAutoFocusField(null)}
               onDismissQualification={() => setQualIssues([])}
               onSubmitAnyway={handleSubmitAnyway}
             />
@@ -1444,13 +1727,16 @@ function App() {
 
               {/* ── Analyses ── */}
               {section === 'analyses' && <>
-                <GapPanel gap={result.gap} />
-                <VariantsPanel variants={result.variants} />
-                <ABTestPanel abTest={result.abTest} />
+                {/* Bento : 2/3 - 1/3, puis 1/2 - 1/2, puis pleine largeur. */}
+                <GapDiagnostic gap={result.gap} recommendation={result.recommendation} />
+                <ContextPanel context={result.context} channel={brief.channel} />
+                <VariantsPanel variants={result.variants} channel={brief.channel} />
+                <ABTestPanel abTest={result.abTest} onGoToBrief={goToAudienceSize} />
                 <LearningPanel learning={result.learning} onLearningCalculated={handleLearningCalculated} />
+                <AnalysisFooter meta={result.meta} context={result.context} onExport={handleExportJson} />
               </>}
 
-              <CTAReset onReset={handleReset} />
+              {section !== 'analyses' && <CTAReset onReset={handleReset} />}
             </>
           )}
         </div>

@@ -290,8 +290,56 @@ function Card({ title, sub, col = 6, dark = false, className = '', children }) {
 }
 
 /* ---------- BRIEF FORM ---------- */
-function BriefForm({ brief, onChange, onSubmit, loading, error }) {
+/* ---------- Encart de qualification du brief ---------- */
+
+/**
+ * Suggestions de l'agent avant analyse. Jamais bloquant : l'encart est
+ * fermable, et « Lancer quand même » part sur le pipeline inchangé.
+ */
+function BriefQualification({ issues, onFocusField, onDismiss, onSubmitAnyway }) {
+  if (!issues.length) return null;
+
+  return (
+    <div className="brief-qualif" role="status">
+      <div className="brief-qualif-head">
+        <span className="brief-qualif-title">
+          L’agent suggère de préciser {issues.length > 1 ? `${issues.length} points` : 'un point'}
+        </span>
+        <button type="button" className="brief-qualif-close" onClick={onDismiss} aria-label="Fermer les suggestions">×</button>
+      </div>
+      <ul className="brief-qualif-list">
+        {issues.map((issue) => (
+          <li className={`brief-qualif-item brief-qualif-${issue.severity}`} key={`${issue.field}-${issue.question}`}>
+            <span className="brief-qualif-field">{issue.label}</span>
+            <p className="brief-qualif-question">{issue.question}</p>
+            <button type="button" className="brief-qualif-precise" onClick={() => onFocusField(issue.field)}>
+              Préciser
+            </button>
+          </li>
+        ))}
+      </ul>
+      <div className="brief-qualif-actions">
+        <button type="button" className="pill-btn dark" onClick={onSubmitAnyway}>
+          Lancer quand même
+        </button>
+        <span className="brief-qualif-note">Ces suggestions n’influencent pas le score : l’analyse reste identique.</span>
+      </div>
+    </div>
+  );
+}
+
+function BriefForm({ brief, onChange, onSubmit, loading, error, qualifying, qualIssues = [], onDismissQualification, onSubmitAnyway }) {
   const [geoError, setGeoError] = useState(null);
+  // Permet au bouton « Préciser » de renvoyer l'utilisateur sur le champ visé.
+  const fieldRefs = useRef({});
+
+  const focusField = useCallback((field) => {
+    const node = fieldRefs.current[field];
+    if (!node) return;
+    node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    node.focus({ preventScroll: true });
+  }, []);
+
   const [customizerOpen, setCustomizerOpen] = useState(false);
   const [automaticArticles, setAutomaticArticles] = useState([]);
   const [automaticLoading, setAutomaticLoading] = useState(false);
@@ -403,9 +451,16 @@ function BriefForm({ brief, onChange, onSubmit, loading, error }) {
 
   return (
     <Card title="Brief de campagne" sub="Définissez le contexte d'activation" col={12}>
+      <BriefQualification
+        issues={qualIssues}
+        onFocusField={focusField}
+        onDismiss={onDismissQualification}
+        onSubmitAnyway={onSubmitAnyway}
+      />
       <form className="brief-grid" onSubmit={onSubmit}>
         <Field label="Produit / Univers">
           <input
+            ref={(node) => { fieldRefs.current.product = node; }}
             type="text"
             value={brief.product}
             onChange={(e) => onChange('product', e.target.value)}
@@ -413,27 +468,27 @@ function BriefForm({ brief, onChange, onSubmit, loading, error }) {
           />
         </Field>
         <Field label="Canal">
-          <select value={brief.channel} onChange={(e) => onChange('channel', e.target.value)}>
+          <select ref={(node) => { fieldRefs.current.channel = node; }} value={brief.channel} onChange={(e) => onChange('channel', e.target.value)}>
             {CHANNELS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
           </select>
         </Field>
         <Field label="Audience">
-          <select value={brief.audience} onChange={(e) => onChange('audience', e.target.value)}>
+          <select ref={(node) => { fieldRefs.current.audience = node; }} value={brief.audience} onChange={(e) => onChange('audience', e.target.value)}>
             {AUDIENCES.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
           </select>
         </Field>
         <Field label="Objectif">
-          <select value={brief.objective} onChange={(e) => onChange('objective', e.target.value)}>
+          <select ref={(node) => { fieldRefs.current.objective = node; }} value={brief.objective} onChange={(e) => onChange('objective', e.target.value)}>
             {OBJECTIVES.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
           </select>
         </Field>
         <Field label="Ton">
-          <select value={brief.tone} onChange={(e) => onChange('tone', e.target.value)}>
+          <select ref={(node) => { fieldRefs.current.tone = node; }} value={brief.tone} onChange={(e) => onChange('tone', e.target.value)}>
             {TONES.map((t) => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
           </select>
         </Field>
         <Field label="Pression commerciale">
-          <select value={brief.pressure} onChange={(e) => onChange('pressure', e.target.value)}>
+          <select ref={(node) => { fieldRefs.current.pressure = node; }} value={brief.pressure} onChange={(e) => onChange('pressure', e.target.value)}>
             {PRESSURES.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
           </select>
         </Field>
@@ -443,6 +498,7 @@ function BriefForm({ brief, onChange, onSubmit, loading, error }) {
         <Field label="Ville">
           <div className="brief-location-controls">
             <select
+              ref={(node) => { fieldRefs.current.city = node; }}
               value={selectedCity ? selectedCity.label : 'custom'}
               onChange={(e) => {
                 const city = CITIES.find((item) => item.label === e.target.value);
@@ -458,6 +514,7 @@ function BriefForm({ brief, onChange, onSubmit, loading, error }) {
         </Field>
         <Field label="Message principal" full>
           <textarea
+            ref={(node) => { fieldRefs.current.message = node; }}
             value={brief.message}
             onChange={(e) => onChange('message', e.target.value)}
             rows={3}
@@ -517,8 +574,8 @@ function BriefForm({ brief, onChange, onSubmit, loading, error }) {
           )}
         </div>
         <div className="brief-submit-row">
-          <button type="submit" className="pill-btn neon" disabled={loading}>
-            {loading ? 'Analyse en cours…' : "Lancer l'Agent Contextuel"}
+          <button type="submit" className="pill-btn neon" disabled={loading || qualifying}>
+            {qualifying ? 'Vérification du brief…' : loading ? 'Analyse en cours…' : "Lancer l'Agent Contextuel"}
             <Icon.arrow />
           </button>
           {error && <span className="brief-error">{error}</span>}
@@ -538,8 +595,11 @@ function Field({ label, children, full }) {
 }
 
 /* ---------- HERO (score global) ---------- */
-function HeroScore({ scores, recommendation, context, meta }) {
+function HeroScore({ scores, recommendation, context, meta, scoreReview }) {
   const measurable = scores.global !== null && scores.status === 'ok';
+  // Signalement de la relecture Ministral. Une relecture qui n'a pas eu lieu
+  // (reviewSkipped) ne doit jamais produire d'alerte.
+  const needsReview = Boolean(scoreReview && scoreReview.coherent === false && !scoreReview.reviewSkipped);
   const delta = context.seasonalNormal?.delta;
 
   return (
@@ -553,6 +613,17 @@ function HeroScore({ scores, recommendation, context, meta }) {
             </h2>
           ) : (
             <h2>Score <span className="accent">non publiable</span></h2>
+          )}
+          {needsReview && (
+            <div className="score-review-flag" role="status">
+              <span className="score-review-badge">À vérifier manuellement</span>
+              <p className="score-review-reason">
+                {scoreReview.reason}
+                <span className="score-review-note">
+                  {' '}Second avis de l’agent — le score affiché reste celui de la formule, il n’a pas été modifié.
+                </span>
+              </p>
+            </div>
           )}
           <p className="lede">{scores.interpretation}</p>
         </div>
@@ -1067,6 +1138,8 @@ function App() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [qualifying, setQualifying] = useState(false);
+  const [qualIssues, setQualIssues] = useState([]);
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -1094,8 +1167,45 @@ function App() {
     setBrief((prev) => ({ ...prev, [field]: value }));
   }, []);
 
+  /**
+   * Qualification facultative avant analyse. Toute issue (panne, timeout,
+   * réponse vide) mène au même endroit : l'analyse part. L'étape ne peut que
+   * proposer une clarification, jamais retenir l'utilisateur.
+   */
+  const qualifyThenAnalyze = async (briefToAnalyze) => {
+    setQualIssues([]);
+    setQualifying(true);
+    let issues = [];
+    try {
+      const res = await fetch('/api/qualify-brief', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(briefToAnalyze),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data?.issues)) issues = data.issues;
+      }
+    } catch {
+      // Qualification indisponible : on enchaîne comme avant son existence.
+    } finally {
+      setQualifying(false);
+    }
+
+    if (issues.length) {
+      setQualIssues(issues);
+      return;
+    }
+    await analyzeBrief(briefToAnalyze);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    await qualifyThenAnalyze(brief);
+  };
+
+  const handleSubmitAnyway = async () => {
+    setQualIssues([]);
     await analyzeBrief(brief);
   };
 
@@ -1128,6 +1238,7 @@ function App() {
 
   const handleReset = () => {
     setResult(null);
+    setQualIssues([]);
     setBrief(DEFAULT_BRIEF);
     navigateToSection('brief');
   };
@@ -1205,6 +1316,10 @@ function App() {
               onSubmit={handleSubmit}
               loading={loading}
               error={error}
+              qualifying={qualifying}
+              qualIssues={qualIssues}
+              onDismissQualification={() => setQualIssues([])}
+              onSubmitAnyway={handleSubmitAnyway}
             />
           )}
 
@@ -1212,7 +1327,7 @@ function App() {
             <>
               {/* ── Vue d'ensemble ── */}
               {section === 'overview' && <>
-                <HeroScore scores={result.scores} recommendation={result.recommendation} context={result.context} meta={result.meta} />
+                <HeroScore scores={result.scores} recommendation={result.recommendation} context={result.context} meta={result.meta} scoreReview={result.scoreReview} />
                 <ContextSignal context={result.context} onClearCustomArticles={handleClearCustomArticles} />
                 <ScoresPanel scores={result.scores} />
                 <RecommendationPanel recommendation={result.recommendation} />

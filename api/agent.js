@@ -9,6 +9,7 @@ import { generateVariantsWithLLM } from '../backend/engine/variantGeneratorLLM.j
 import { generateActivationPlan } from '../backend/engine/activationPlan.js';
 import { generateABTestPlan } from '../backend/engine/abTestPlan.js';
 import { evaluateGuardrails } from '../backend/engine/guardrails.js';
+import { reviewScoreCoherence } from '../backend/engine/scoreReview.js';
 
 const trendsCache = new Map();
 const TRENDS_TTL = 6 * 60 * 60 * 1000; // 6 heures
@@ -76,6 +77,10 @@ export default async function handler(req, res) {
     context.customMode = Boolean(trendsResult.customMode);
     context.customArticleCount = trendsResult.customArticleCount ?? 0;
     const scores         = calculateScores(context, brief);
+    // Second avis Ministral sur le score. Lancé ici et attendu plus bas : il ne
+    // dépend que du contexte et des scores, donc il s'exécute pendant le reste du
+    // pipeline au lieu de s'ajouter à son temps de réponse.
+    const scoreReviewPromise = reviewScoreCoherence(brief, context, scores);
     const gap            = detectContextualGap(context, brief, scores);
     const recommendation = generateRecommendation(context, brief, scores, gap);
     // Couche Ministral strictement opt-in : sans `useMistral`, le pipeline
@@ -90,6 +95,8 @@ export default async function handler(req, res) {
       status: 'awaiting_results',
       message: 'Renseignez les résultats réels de votre campagne pour obtenir les enseignements de l’agent.',
     };
+    // Le score reste celui de la formule : la relecture n'ajoute qu'un signalement.
+    const scoreReview    = await scoreReviewPromise;
 
     res.json({
       context,
@@ -101,6 +108,7 @@ export default async function handler(req, res) {
       abTest,
       guardrails,
       learning,
+      scoreReview,
       meta: {
         analyzedAt: new Date().toISOString(),
         version: '2.1',

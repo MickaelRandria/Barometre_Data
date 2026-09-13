@@ -15,6 +15,11 @@ export const MISTRAL_MODEL = 'ministral-8b-latest';
 /** Surchargeable pour pointer un serveur mock local pendant les tests. */
 const DEFAULT_BASE_URL = 'https://api.mistral.ai';
 
+/**
+ * Timeout par défaut. Les appels placés sur le chemin critique d'une
+ * interaction utilisateur le raccourcissent via `timeoutMs` : mieux vaut
+ * abandonner la couche LLM que faire attendre devant un formulaire.
+ */
 const DEFAULT_TIMEOUT_MS = 12_000;
 
 function getBaseUrl() {
@@ -61,6 +66,7 @@ export async function callMistralJSON({
   user,
   temperature = 0.4,
   maxTokens = 600,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
 } = {}) {
   const apiKey = String(process.env.MISTRAL_API_KEY || '').trim();
   if (!apiKey) {
@@ -88,7 +94,9 @@ export async function callMistralJSON({
           'Content-Type': 'application/json',
           Accept: 'application/json',
         },
-        timeout: DEFAULT_TIMEOUT_MS,
+        timeout: Number.isFinite(Number(timeoutMs)) && Number(timeoutMs) > 0
+          ? Number(timeoutMs)
+          : DEFAULT_TIMEOUT_MS,
       },
     );
   } catch (error) {

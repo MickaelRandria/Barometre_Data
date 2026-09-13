@@ -414,6 +414,29 @@ svg.radar { width: 100%; height: auto; max-height: 320px; }
 .brief-submit-row .pill-btn:disabled { opacity: 0.62; cursor: wait; transform: none; }
 .head-actions .pill-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .brief-error { color: #A73838; background: #F9E5E5; border: 1px solid #F2C7C7; padding: 10px 12px; border-radius: 12px; font-size: 12px; font-weight: 700; }
+/* Badge de relecture du score — signalement, jamais une modification du chiffre */
+.score-review-flag { display: flex; align-items: flex-start; gap: 11px; margin: 14px 0 0; padding: 12px 14px; border-radius: var(--radius-sm); background: rgba(242,210,122,.12); border-left: 3px solid var(--warm); max-width: 460px; flex-wrap: wrap; }
+.score-review-badge { display: inline-flex; align-items: center; padding: 5px 11px; border-radius: 999px; background: var(--warm); color: #3E2B0C; font: 11px/1 "JetBrains Mono", monospace; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; flex: 0 0 auto; }
+.score-review-reason { margin: 0; flex: 1 1 220px; font-size: 12.5px; line-height: 1.5; color: rgba(255,255,255,0.82); }
+.score-review-note { color: rgba(255,255,255,0.5); }
+
+/* Encart de qualification du brief — suggestion de l'agent, jamais un blocage */
+.brief-qualif { margin-bottom: 18px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--line-2); overflow: hidden; }
+.brief-qualif-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 16px 11px; }
+.brief-qualif-title { font-size: 13px; font-weight: 700; color: var(--ink); }
+.brief-qualif-close { width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 50%; background: #fff; color: var(--muted); font: inherit; font-size: 15px; line-height: 1; cursor: pointer; flex: 0 0 auto; }
+.brief-qualif-close:hover { color: var(--ink); box-shadow: var(--shadow); }
+.brief-qualif-list { list-style: none; margin: 0; padding: 0 16px; display: flex; flex-direction: column; gap: 8px; }
+.brief-qualif-item { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "field action" "question action"; align-items: center; gap: 2px 12px; padding: 11px 13px; border-radius: var(--radius-sm); background: #fff; border-left: 3px solid var(--blue); }
+.brief-qualif-warning { border-left-color: var(--warm); }
+.brief-qualif-info { border-left-color: var(--blue); }
+.brief-qualif-field { grid-area: field; font: 10px/1.3 "JetBrains Mono", monospace; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.brief-qualif-question { grid-area: question; margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--ink); }
+.brief-qualif-precise { grid-area: action; padding: 7px 13px; border: 1px solid var(--line); border-radius: 999px; background: #fff; color: var(--ink); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.brief-qualif-precise:hover { border-color: var(--ink); }
+.brief-qualif-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 13px 16px 15px; }
+.brief-qualif-note { color: var(--muted); font-size: 11.5px; line-height: 1.4; }
+
 .brief-customizer { border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--line-2); overflow: visible; }
 .brief-customizer-toggle { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border: 0; background: transparent; color: var(--ink); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; text-align: left; }
 .brief-customizer-panel { padding: 0 16px 16px; border-top: 1px solid var(--line); }
@@ -617,6 +640,9 @@ svg.radar { width: 100%; height: auto; max-height: 320px; }
   .brief-geo-btn { min-height: 44px; }
   .brief-submit-row { align-items: stretch; flex-direction: column; }
   .brief-submit-row .pill-btn { width: 100%; justify-content: center; }
+  .brief-qualif-item { grid-template-columns: 1fr; grid-template-areas: "field" "question" "action"; gap: 4px; }
+  .brief-qualif-precise { justify-self: start; margin-top: 6px; }
+  .brief-qualif-actions .pill-btn { width: 100%; justify-content: center; }
   .ministats { grid-template-columns: 1fr 1fr; gap: 10px; }
   .signal .body { grid-template-columns: 1fr 1fr; }
   .cta { grid-template-columns: 1fr; gap: 16px; }

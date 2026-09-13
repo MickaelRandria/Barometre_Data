@@ -2,6 +2,9 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import axios from 'axios';
+import trackHandler from '../api/track.js';
+import adminSessionHandler from '../api/admin-session.js';
+import analyticsHandler from '../api/analytics.js';
 
 import { analyzeContext } from './engine/contextEngine.js';
 import { calculateScores } from './engine/predictionLayer.js';
@@ -12,13 +15,24 @@ import { generateVariantsWithLLM } from './engine/variantGeneratorLLM.js';
 import { generateActivationPlan } from './engine/activationPlan.js';
 import { generateABTestPlan } from './engine/abTestPlan.js';
 import { evaluateGuardrails } from './engine/guardrails.js';
+import { reviewScoreCoherence } from './engine/scoreReview.js';
 import { analyzeCampaignResults } from './engine/learningLoop.js';
 import { getTrendsCacheKey, getTrendsWithStatus } from './engine/trendsEngine.js';
+import { qualifyBrief } from './engine/briefQualifier.js';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Same capture handler locally and on Vercel; mount before the general CORS.
+app.all('/api/analytics', analyticsHandler);
+app.all('/api/admin-session', express.json({ limit: '1kb' }), adminSessionHandler, (error, req, res, next) => {
+  res.status(error.type === 'entity.too.large' ? 413 : 400).json({ authenticated: false });
+});
+app.all('/api/track', express.json({ limit: '1kb' }), trackHandler, (error, req, res, next) => {
+  res.status(error.type === 'entity.too.large' ? 413 : 400).json({ ok: false });
+});
 
 app.use(cors());
 app.use(express.json());
@@ -154,6 +168,20 @@ app.get('/api/wiki-search', async (req, res) => {
   }
 });
 
+/**
+ * Qualification du brief avant analyse. Répond toujours 200 : une panne de
+ * Ministral ne doit jamais empêcher l'utilisateur de lancer son analyse.
+ */
+app.post('/api/qualify-brief', async (req, res) => {
+  try {
+    const { issues } = await qualifyBrief(req.body ?? {});
+    res.json({ issues });
+  } catch (error) {
+    console.error('Brief qualification error:', error);
+    res.json({ issues: [] });
+  }
+});
+
 app.post('/api/learning', (req, res) => {
   try {
     res.json(analyzeCampaignResults(req.body));
@@ -221,6 +249,10 @@ app.post('/api/agent', async (req, res) => {
     context.customMode = Boolean(trendsResult.customMode);
     context.customArticleCount = trendsResult.customArticleCount ?? 0;
     const scores         = calculateScores(context, brief);
+    // Second avis Ministral sur le score. Lancé ici et attendu plus bas : il ne
+    // dépend que du contexte et des scores, donc il s'exécute pendant le reste du
+    // pipeline au lieu de s'ajouter à son temps de réponse.
+    const scoreReviewPromise = reviewScoreCoherence(brief, context, scores);
     const gap            = detectContextualGap(context, brief, scores);
     const recommendation = generateRecommendation(context, brief, scores, gap);
     // Couche Ministral strictement opt-in : sans `useMistral`, le pipeline
@@ -235,10 +267,12 @@ app.post('/api/agent', async (req, res) => {
       status: 'awaiting_results',
       message: 'Renseignez les résultats réels de votre campagne pour obtenir les enseignements de l’agent.',
     };
+    // Le score reste celui de la formule : la relecture n'ajoute qu'un signalement.
+    const scoreReview    = await scoreReviewPromise;
 
     res.json({
       context, scores, gap, recommendation, variants,
-      activation, abTest, guardrails, learning,
+      activation, abTest, guardrails, learning, scoreReview,
       meta: { analyzedAt: new Date().toISOString(), version: '2.1', modules: 10 },
     });
   } catch (error) {

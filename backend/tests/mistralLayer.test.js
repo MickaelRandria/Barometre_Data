@@ -16,7 +16,7 @@ import { detectContextualGap } from '../engine/gapDetection.js';
 import { generateRecommendation } from '../engine/agentRecommendation.js';
 import { generateVariants } from '../engine/variantGenerator.js';
 import { generateVariantsWithLLM } from '../engine/variantGeneratorLLM.js';
-import { suggestCustomArticles } from '../engine/wikipediaProxySuggestion.js';
+import { isGeneralTopic, suggestCustomArticles, titleMatchesCandidate } from '../engine/wikipediaProxySuggestion.js';
 import { detectMessageWeatherContradictions } from '../engine/weatherConsistency.js';
 
 /* ------------------------------------------------------------------ */
@@ -250,6 +250,27 @@ await test('3. suggestCustomArticles renvoie { ok: false } proprement sans clé'
   assert.deepEqual(result.articles, []);
   assert.deepEqual(result.detail, []);
   assert.match(result.reason, /MISTRAL_API_KEY/);
+});
+
+await test('4. le titre résolu doit encore parler du candidat', () => {
+  // Sans ce contrôle, « Fabrication de bougies » ressortait en « Zézette de Sète ».
+  assert.equal(titleMatchesCandidate('Fabrication de bougies', 'Zézette de Sète'), false);
+  assert.equal(titleMatchesCandidate('Tricot', 'Tricot'), true);
+  assert.equal(titleMatchesCandidate('Bougie', 'Bougies parfumées'), true, 'le pluriel doit passer');
+  assert.equal(titleMatchesCandidate('Randonnée', 'Randonnée pédestre'), true);
+  assert.equal(titleMatchesCandidate('Aromathérapie', 'Guide de haute montagne'), false);
+  // Candidat sans mot significatif : on ne peut pas comparer, on accepte.
+  assert.equal(titleMatchesCandidate('Thé', 'Thé'), true);
+});
+
+await test('5. un proxy d’intention est un sujet général, jamais une œuvre', () => {
+  assert.equal(isGeneralTopic("Peau d'Âne (film, 1970)"), false);
+  assert.equal(isGeneralTopic('Nirvana (groupe)'), false);
+  assert.equal(isGeneralTopic('Thé (homonymie)'), false);
+  // Les qualificatifs légitimes de sectorMapping.js doivent passer.
+  assert.equal(isGeneralTopic('Robe_(vêtement)'), true);
+  assert.equal(isGeneralTopic('Retraite (économie)'), true);
+  assert.equal(isGeneralTopic('Tricot'), true);
 });
 
 /* ------------------------------------------------------------------ */

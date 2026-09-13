@@ -1,17 +1,19 @@
 import { setCors } from './_weather.js';
 import { qualifyBrief } from '../backend/engine/briefQualifier.js';
 import { parseBriefDescription } from '../backend/engine/briefParser.js';
+import { suggestCustomArticles } from '../backend/engine/wikipediaProxySuggestion.js';
 
 /**
- * Assistance Ministral au brief, avant analyse — deux actions sur une seule route.
+ * Assistance Ministral au brief, avant analyse — trois actions sur une seule route.
  *
- * Les deux étaient initialement deux endpoints distincts. Le plan Hobby de
+ * Elles étaient destinées à autant d'endpoints distincts. Le plan Hobby de
  * Vercel plafonne à 12 fonctions serverless par déploiement : les regrouper ici
- * libère une place sans retirer aucune capacité. Toute la logique reste dans
+ * libère des places sans retirer aucune capacité. Toute la logique reste dans
  * backend/engine/, cette route ne fait que router.
  *
- *   { action: 'qualify', brief }        -> { issues: [...] }
- *   { action: 'parse', description }    -> { ok, brief, fieldConfidence }
+ *   { action: 'qualify', brief }          -> { issues: [...] }
+ *   { action: 'parse', description }      -> { ok, brief, fieldConfidence }
+ *   { action: 'suggest-articles', brief } -> { ok, articles, detail }
  */
 export default async function handler(req, res) {
   setCors(res);
@@ -43,10 +45,24 @@ export default async function handler(req, res) {
       });
     }
 
+    if (action === 'suggest-articles') {
+      // Les titres viennent de la recherche Wikipédia, jamais du modèle seul.
+      const result = await suggestCustomArticles(req.body?.brief ?? {});
+      if (!result.ok) console.warn('Article suggestion unavailable:', result.reason);
+      return res.status(200).json({
+        ok: result.ok,
+        articles: result.articles,
+        detail: result.detail,
+        reason: result.ok
+          ? null
+          : (result.userMessage ?? 'Suggestion indisponible. Ajoutez vos articles à la main.'),
+      });
+    }
+
     return res.status(400).json({ ok: false, reason: `Action inconnue : « ${action} ».` });
   } catch (error) {
     console.error('Brief assist error:', error);
-    // Forme de repli valable pour les deux actions : ni suggestion, ni extraction.
-    return res.status(200).json({ issues: [], ok: false, reason: 'Assistance indisponible pour le moment.' });
+    // Forme de repli valable pour les trois actions.
+    return res.status(200).json({ issues: [], ok: false, articles: [], detail: [], reason: 'Assistance indisponible pour le moment.' });
   }
 }

@@ -370,6 +370,9 @@ function BriefForm({ brief, onChange, onSubmit, loading, error, qualifying, qual
   const [articleResults, setArticleResults] = useState([]);
   const [articleSearching, setArticleSearching] = useState(false);
   const [articleError, setArticleError] = useState(null);
+  const [suggesting, setSuggesting] = useState(false);
+  // Justification de chaque article proposé : le choix doit rester défendable.
+  const [suggestionDetail, setSuggestionDetail] = useState([]);
   const selectedCity = CITIES.find((city) => city.label === brief.city);
   const customArticles = brief.customArticles ?? [];
   const isCustomMode = customArticles.length > 0;
@@ -450,6 +453,36 @@ function BriefForm({ brief, onChange, onSubmit, loading, error, qualifying, qual
       },
       () => setGeoError('La géolocalisation a été refusée.'),
     );
+  };
+
+  /**
+   * Demande à l'agent des articles d'intention cohérents avec le brief.
+   * Les titres viennent d'une vraie recherche Wikipédia, pas du modèle seul.
+   */
+  const suggestArticles = async () => {
+    if (suggesting) return;
+    setSuggesting(true);
+    setArticleError(null);
+    try {
+      const response = await fetch('/api/brief-assist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'suggest-articles', brief }),
+      });
+      const data = await response.json();
+      if (!data?.ok || !data.articles?.length) {
+        setSuggestionDetail([]);
+        setArticleError(data?.reason || 'Suggestion indisponible. Ajoutez vos articles à la main.');
+        return;
+      }
+      setSuggestionDetail(data.detail ?? []);
+      onChange('customArticles', data.articles.slice(0, 12));
+    } catch {
+      setSuggestionDetail([]);
+      setArticleError('Suggestion indisponible. Ajoutez vos articles à la main.');
+    } finally {
+      setSuggesting(false);
+    }
   };
 
   const addArticle = (title) => {
@@ -597,6 +630,25 @@ function BriefForm({ brief, onChange, onSubmit, loading, error, qualifying, qual
                   <span className="brief-customizer-muted">Ajoutez des articles pour créer une sélection personnalisée.</span>
                 )}
               </div>
+              <div className="brief-suggest">
+                <button type="button" className="brief-suggest-btn" onClick={suggestArticles} disabled={suggesting}>
+                  {suggesting ? 'L’agent cherche des articles…' : 'Proposer des articles avec l’agent'}
+                </button>
+                <span className="brief-suggest-note">
+                  Titres vérifiés sur Wikipédia — une dimension sans lien défendable est omise.
+                </span>
+              </div>
+              {suggestionDetail.length > 0 && (
+                <ul className="brief-suggest-detail">
+                  {suggestionDetail.map((entry) => (
+                    <li key={entry.article}>
+                      <span className="brief-suggest-dim">{entry.dimension}</span>
+                      <strong>{entry.article}</strong>
+                      <span className="brief-suggest-why">{entry.reason}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
               <div className="brief-article-count">{selectedArticles.length} article{selectedArticles.length > 1 ? 's' : ''} sélectionné{selectedArticles.length > 1 ? 's' : ''} sur 12</div>
               <div className="brief-wiki-search">
                 <input
@@ -618,7 +670,7 @@ function BriefForm({ brief, onChange, onSubmit, loading, error, qualifying, qual
                   </div>
                 )}
               </div>
-              {isCustomMode && <button type="button" className="brief-reset-articles" onClick={() => onChange('customArticles', [])}>Revenir au mapping automatique</button>}
+              {isCustomMode && <button type="button" className="brief-reset-articles" onClick={() => { setSuggestionDetail([]); onChange('customArticles', []); }}>Revenir au mapping automatique</button>}
               {articleError && <p className="brief-customizer-error">{articleError}</p>}
             </div>
           )}

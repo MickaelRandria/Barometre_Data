@@ -20,6 +20,7 @@ import { analyzeCampaignResults } from './engine/learningLoop.js';
 import { getTrendsCacheKey, getTrendsWithStatus } from './engine/trendsEngine.js';
 import { qualifyBrief } from './engine/briefQualifier.js';
 import { parseBriefDescription } from './engine/briefParser.js';
+import { suggestCustomArticles } from './engine/wikipediaProxySuggestion.js';
 
 dotenv.config();
 
@@ -188,6 +189,18 @@ app.post('/api/brief-assist', async (req, res) => {
         return res.json({ ok: false, reason: result.userMessage });
       }
       return res.json({ ok: true, brief: result.brief, fieldConfidence: result.fieldConfidence });
+    }
+    if (action === 'suggest-articles') {
+      const result = await suggestCustomArticles(req.body?.brief ?? {});
+      if (!result.ok) console.warn('Article suggestion unavailable:', result.reason);
+      return res.json({
+        ok: result.ok,
+        articles: result.articles,
+        detail: result.detail,
+        reason: result.ok
+          ? null
+          : (result.userMessage ?? 'Suggestion indisponible. Ajoutez vos articles à la main.'),
+      });
     }
     return res.status(400).json({ ok: false, reason: `Action inconnue : « ${action} ».` });
   } catch (error) {

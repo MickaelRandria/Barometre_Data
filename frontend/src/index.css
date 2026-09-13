@@ -464,6 +464,17 @@ svg.radar { width: 100%; height: auto; max-height: 320px; }
 .brief-article-chip button { width: 17px; height: 17px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 50%; background: rgba(255,255,255,.16); color: #fff; cursor: pointer; font: inherit; line-height: 1; }
 .brief-article-chip button:hover { background: var(--neon); color: var(--ink); }
 .brief-customizer-muted { color: var(--muted); font-size: 12px; }
+/* Proposition d'articles d'intention par l'agent */
+.brief-suggest { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 11px; }
+.brief-suggest-btn { padding: 8px 14px; border: 1px solid var(--ink); border-radius: 999px; background: var(--ink); color: #fff; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.brief-suggest-btn:hover:not(:disabled) { background: var(--neon); border-color: var(--neon); color: var(--ink); }
+.brief-suggest-btn:disabled { opacity: .55; cursor: wait; }
+.brief-suggest-note { flex: 1 1 200px; color: var(--muted); font-size: 11px; line-height: 1.4; }
+.brief-suggest-detail { list-style: none; margin: 11px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.brief-suggest-detail li { display: grid; grid-template-columns: auto 1fr; gap: 2px 9px; padding: 9px 11px; border-radius: var(--radius-sm); background: #fff; border-left: 3px solid var(--mint); }
+.brief-suggest-dim { grid-column: 1; font: 9.5px/1.6 "JetBrains Mono", monospace; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); white-space: nowrap; }
+.brief-suggest-detail strong { grid-column: 2; font-size: 12.5px; color: var(--ink); }
+.brief-suggest-why { grid-column: 2; font-size: 11.5px; line-height: 1.45; color: var(--muted); }
 .brief-article-count { margin: 10px 0; color: var(--muted); font: 11px/1.3 "JetBrains Mono", monospace; }
 .brief-wiki-search { position: relative; }
 .brief-wiki-search input { width: 100%; min-height: 40px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); font: inherit; font-size: 12px; outline: none; }
@@ -656,6 +667,8 @@ svg.radar { width: 100%; height: auto; max-height: 320px; }
   .learning-form { grid-template-columns: 1fr; }
   .brief-location-controls { grid-template-columns: 1fr; }
   .brief-geo-btn { min-height: 44px; }
+  .brief-suggest-btn { width: 100%; }
+  .brief-suggest-detail li { grid-template-columns: 1fr; }
   .brief-express-actions { align-items: stretch; flex-direction: column; }
   .brief-express-actions .pill-btn { width: 100%; justify-content: center; }
   .brief-submit-row { align-items: stretch; flex-direction: column; }

@@ -1,0 +1,20 @@
+.admin-access { min-width: 0; width: 100%; }
+.admin-auth-controls { padding: 18px 36px 0; display: flex; justify-content: flex-end; align-items: center; gap: 16px; font-size: 12px; }
+.admin-login-page { min-width: 0; min-height: 100vh; display: grid; place-items: center; padding: 40px 24px; }
+.admin-login-card { width: 100%; max-width: 440px; padding: 32px; border: 1px solid var(--line); border-radius: 22px; background: var(--card); }
+.admin-login-badge { display: inline-block; padding: 7px 10px; background: var(--neon); border-radius: 999px; font-size: 11px; font-weight: 650; }
+.admin-login-card h1 { margin: 24px 0; font-size: 28px; line-height: 1.2; letter-spacing: -.035em; }
+.admin-login-card form { display: grid; gap: 12px; }
+.admin-login-card label { font-size: 13px; font-weight: 600; }
+.admin-login-card input { width: 100%; min-width: 0; border: 1px solid #b5bcc6; border-radius: 12px; padding: 13px 14px; font: inherit; background: #f8f9fb; }
+.admin-login-card input:focus { outline: 2px solid var(--ink); outline-offset: 2px; }
+.admin-login-card form .pill-btn { margin-top: 8px; padding: 14px; }
+.admin-login-error { color: #a62525; font-size: 12px; line-height: 1.5; }
+.admin-login-back { margin-top: 24px; color: var(--ink-2); font: inherit; font-size: 12px; background: none; border: 0; cursor: pointer; }
+.admin-login-card button:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
+@media (max-width: 720px) {
+  .admin-login-page { padding: 84px 16px 28px; }
+  .admin-login-card { padding: 26px 22px; }
+  .admin-auth-controls { padding: 74px 16px 0; }
+  .admin-access .admin-dashboard { padding-top: 20px; }
+}

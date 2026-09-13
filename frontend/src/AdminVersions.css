@@ -1,0 +1,29 @@
+.admin-version-heading { display: flex; align-items: center; gap: 14px; }
+.admin-version-badge { flex-shrink: 0; padding: 5px 9px; border: 1px solid #dce0e6; border-radius: 999px; background: #fff; color: #687383; font-size: 11px; font-weight: 600; }
+.admin-sparkline { display: flex; align-items: center; gap: 14px; width: fit-content; margin-top: 14px; color: #b7c0ce; }
+.admin-sparkline.is-positive { color: var(--admin-lime); }
+.admin-sparkline svg { width: 136px; height: 56px; }
+.admin-sparkline > div { display: grid; gap: 4px; }
+.admin-sparkline span, .admin-sparkline small { font-size: 10px; color: #a9b3c0; }
+.admin-sparkline strong { font-size: 13px; font-weight: 600; }
+.admin-click-distribution { display: grid; gap: 16px; margin-top: 22px; list-style: none; padding: 0; }
+.admin-click-distribution li > div:first-child { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; margin-bottom: 8px; }
+.admin-click-distribution strong { color: #dfe5ec; }
+.admin-click-track { height: 7px; border-radius: 6px; background: #29313d; overflow: hidden; }
+.admin-click-track > span { display: block; height: 100%; border-radius: inherit; background: var(--admin-lime); }
+.admin-data-state { min-height: 160px; }
+.admin-data-state p { margin-top: 12px; line-height: 1.6; }
+.admin-data-note { margin-bottom: 16px; font-size: 12px; color: var(--admin-muted); }
+.admin-version-dashboard .admin-hero-content h2 strong { margin-right: .12em; }
+.admin-version-dashboard .admin-button:disabled { opacity: .5; cursor: wait; }
+.admin-version-dashboard .admin-traffic-scale { margin-bottom: 24px; }
+.admin-view-switch { display: flex; gap: 4px; margin-right: auto; border: 1px solid #dce0e6; padding: 4px; border-radius: 999px; background: white; }
+.admin-view-switch button { border: 0; border-radius: 999px; padding: 10px 16px; background: transparent; color: #535c68; font: inherit; font-weight: 600; cursor: pointer; }
+.admin-view-switch button[aria-pressed="true"] { background: #141922; color: #d9f99d; }
+.admin-view-switch button:focus-visible { outline: 2px solid #141922; outline-offset: 2px; }
+.admin-auth-controls { flex-wrap: wrap; }
+@media (max-width: 720px) {
+  .admin-version-heading { gap: 10px; align-items: flex-start; }
+  .admin-version-badge { margin-top: 4px; }
+  .admin-version-dashboard .admin-top-actions { flex-wrap: wrap; }
+}

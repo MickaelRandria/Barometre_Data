@@ -1,6 +1,14 @@
 {
   "name": "barometre-data",
   "type": "module",
+  "scripts": {
+    "build": "npm run build --prefix frontend",
+    "simulate:traffic": "node --env-file-if-exists=.env.local scripts/simulate-traffic.js",
+    "clear:simulation": "node --env-file-if-exists=.env.local scripts/clear-simulation.js",
+    "test:tracking": "node --test tests/tracking.test.js",
+    "test:admin": "node --test tests/admin-session.test.js",
+    "test:analytics": "node --test tests/analytics.test.js tests/simulation.test.js"
+  },
   "dependencies": {
     "axios": "^1.6.0"
   }

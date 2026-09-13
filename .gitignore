@@ -32,3 +32,15 @@ Thumbs.db
 # Misc
 *.tmp
 *.bak
+
+.vercel
+.env*
+!.env.example
+!frontend/.env.example
+
+# Outillage agent (docs vendorees, reinstallables via skills-lock)
+.agents/
+skills-lock.json
+
+# Captures et exports de travail
+artifacts/

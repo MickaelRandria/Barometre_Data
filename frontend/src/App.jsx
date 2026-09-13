@@ -1,7 +1,10 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { trackSection } from './track.js';
 import './index.css';
 import LivreBlanc from './LivreBlanc.jsx';
 import SignauxContextuels from './SignauxContextuels.jsx';
+import AdminDashboard from './AdminDashboard.jsx';
+import AdminAccess from './AdminAccess.jsx';
 import { CITIES } from './data/cities.js';
 import { createPortal } from 'react-dom';
 import { AxisMetrics, SectorIndicator, Sparkline, SourceLinks, articleNameFromUrl, formatViews, getRecentViews } from './TrendEvidence.jsx';
@@ -142,6 +145,7 @@ const NAV_ITEMS = [
   { id: 'analyses', icon: Icon.chart, label: 'Analyses' },
   { id: 'brief', icon: Icon.doc, label: 'Brief' },
   { id: 'weather', icon: Icon.weather, label: 'Contexte' },
+  { id: 'admin', icon: Icon.settings, label: 'Administration' },
 ];
 
 function MobileHeader({ section, setSection }) {
@@ -218,6 +222,7 @@ function Sidebar({ section, setSection }) {
         </button>
       ))}
       <div className="nav-spacer" />
+      <button type="button" className={`nav-icon ${section === 'admin' ? 'active' : ''}`} onClick={() => setSection('admin')} aria-label="Administration" title="Administration"><Icon.settings /></button>
     </aside>
   );
 }
@@ -249,6 +254,7 @@ function TopBar({ section, setSection }) {
         ))}
       </div>
       <div className="team-cluster">
+        <button type="button" className="pill-btn dark" onClick={() => setSection('admin')}>Administration <Icon.settings /></button>
         <div className="avatars" aria-hidden="true">
           <div className="av a1">MN</div>
           <div className="av a2">LV</div>
@@ -1053,11 +1059,36 @@ const DEFAULT_BRIEF = {
 
 function App() {
   useScrollProgress();
-  const [section, setSection] = useState('livre');
+  const [section, setSection] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('admin') === 'true' ? 'admin' : 'livre';
+  });
   const [brief, setBrief] = useState(DEFAULT_BRIEF);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has('admin')) return;
+    url.searchParams.delete('admin');
+    url.searchParams.delete('key');
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+  }, []);
+
+  const previousTrackedSection = useRef(null);
+  // Track the content actually rendered, including the existing brief fallback.
+  const displayedSection = ['livre', 'weather', 'admin'].includes(section) || result ? section : 'brief';
+  useEffect(() => {
+    if (previousTrackedSection.current === displayedSection) return;
+    previousTrackedSection.current = displayedSection;
+    trackSection('pageview', displayedSection);
+  }, [displayedSection]);
+
+  const navigateToSection = useCallback((nextSection) => {
+    trackSection('click', nextSection);
+    setSection(nextSection);
+  }, []);
 
   const handleChange = useCallback((field, value) => {
     setBrief((prev) => ({ ...prev, [field]: value }));
@@ -1098,12 +1129,12 @@ function App() {
   const handleReset = () => {
     setResult(null);
     setBrief(DEFAULT_BRIEF);
-    setSection('brief');
+    navigateToSection('brief');
   };
 
   const handleAnalyzeContext = (city) => {
     setBrief((previous) => ({ ...previous, city: city.label, lat: city.lat, lon: city.lon }));
-    setSection('brief');
+    navigateToSection('brief');
   };
 
   const handleLearningCalculated = (learning) => {
@@ -1123,12 +1154,24 @@ function App() {
     URL.revokeObjectURL(url);
   };
 
+  if (section === 'admin') {
+    return (
+      <div className="app admin-shell">
+        <MobileHeader section={section} setSection={navigateToSection} />
+        <Sidebar section={section} setSection={navigateToSection} />
+        <AdminAccess onCancel={() => navigateToSection('livre')}>
+          <AdminDashboard onExit={() => navigateToSection('livre')} />
+        </AdminAccess>
+      </div>
+    );
+  }
+
   return (
     <div className="app">
-      <MobileHeader section={section} setSection={setSection} />
-      <Sidebar section={section} setSection={setSection} />
+      <MobileHeader section={section} setSection={navigateToSection} />
+      <Sidebar section={section} setSection={navigateToSection} />
       <main className="main-content">
-        <TopBar section={section} setSection={setSection} />
+        <TopBar section={section} setSection={navigateToSection} />
 
         <div className="page-head">
           <div>
@@ -1143,14 +1186,14 @@ function App() {
           </div>
           <div className="head-actions">
             <button type="button" className="pill-btn" onClick={handleExportJson} disabled={!result}>Exporter le JSON</button>
-            <button type="button" className="pill-btn neon" onClick={() => setSection('brief')}>
+            <button type="button" className="pill-btn neon" onClick={() => navigateToSection('brief')}>
               Nouveau brief <Icon.arrow />
             </button>
           </div>
         </div>
 
         {section === 'livre' ? (
-          <LivreBlanc setSection={setSection} />
+          <LivreBlanc setSection={navigateToSection} />
         ) : section === 'weather' ? (
           <SignauxContextuels onAnalyzeContext={handleAnalyzeContext} onClearCustomArticles={handleClearCustomArticles} brief={brief} />
         ) : (

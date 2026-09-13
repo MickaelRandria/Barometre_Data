@@ -329,10 +329,10 @@ function BriefForm({ brief, onChange, onSubmit, loading, error, qualifying, qual
     setParsing(true);
     setParseError(null);
     try {
-      const response = await fetch('/api/parse-brief', {
+      const response = await fetch('/api/brief-assist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description }),
+        body: JSON.stringify({ action: 'parse', description }),
       });
       const data = await response.json();
       if (!data?.ok || !data.brief) {
@@ -1234,10 +1234,10 @@ function App() {
     setQualifying(true);
     let issues = [];
     try {
-      const res = await fetch('/api/qualify-brief', {
+      const res = await fetch('/api/brief-assist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(briefToAnalyze),
+        body: JSON.stringify({ action: 'qualify', brief: briefToAnalyze }),
       });
       if (res.ok) {
         const data = await res.json();

@@ -170,34 +170,29 @@ app.get('/api/wiki-search', async (req, res) => {
 });
 
 /**
- * Qualification du brief avant analyse. Répond toujours 200 : une panne de
- * Ministral ne doit jamais empêcher l'utilisateur de lancer son analyse.
+ * Assistance au brief : qualification avant analyse et extraction depuis une
+ * description libre. Regroupées sur une route unique, comme en production, où
+ * le plan Hobby de Vercel plafonne le nombre de fonctions serverless.
  */
-app.post('/api/qualify-brief', async (req, res) => {
+app.post('/api/brief-assist', async (req, res) => {
+  const action = String(req.body?.action ?? '').trim();
   try {
-    const { issues } = await qualifyBrief(req.body ?? {});
-    res.json({ issues });
-  } catch (error) {
-    console.error('Brief qualification error:', error);
-    res.json({ issues: [] });
-  }
-});
-
-/**
- * Transforme une description libre en brief structuré pré-rempli.
- * L'échec est explicite : sans extraction, l'interface bascule sur la saisie manuelle.
- */
-app.post('/api/parse-brief', async (req, res) => {
-  try {
-    const result = await parseBriefDescription(req.body?.description);
-    if (!result.ok) {
-      console.warn('Brief parsing unavailable:', result.reason);
-      return res.json({ ok: false, reason: result.userMessage });
+    if (action === 'qualify') {
+      const { issues } = await qualifyBrief(req.body?.brief ?? {});
+      return res.json({ issues });
     }
-    res.json({ ok: true, brief: result.brief, fieldConfidence: result.fieldConfidence });
+    if (action === 'parse') {
+      const result = await parseBriefDescription(req.body?.description);
+      if (!result.ok) {
+        console.warn('Brief parsing unavailable:', result.reason);
+        return res.json({ ok: false, reason: result.userMessage });
+      }
+      return res.json({ ok: true, brief: result.brief, fieldConfidence: result.fieldConfidence });
+    }
+    return res.status(400).json({ ok: false, reason: `Action inconnue : « ${action} ».` });
   } catch (error) {
-    console.error('Brief parsing error:', error);
-    res.json({ ok: false, reason: 'Génération indisponible pour le moment.' });
+    console.error('Brief assist error:', error);
+    res.json({ issues: [], ok: false, reason: 'Assistance indisponible pour le moment.' });
   }
 });
 

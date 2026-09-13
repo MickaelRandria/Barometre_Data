@@ -19,6 +19,7 @@ import { reviewScoreCoherence } from './engine/scoreReview.js';
 import { analyzeCampaignResults } from './engine/learningLoop.js';
 import { getTrendsCacheKey, getTrendsWithStatus } from './engine/trendsEngine.js';
 import { qualifyBrief } from './engine/briefQualifier.js';
+import { parseBriefDescription } from './engine/briefParser.js';
 
 dotenv.config();
 
@@ -179,6 +180,24 @@ app.post('/api/qualify-brief', async (req, res) => {
   } catch (error) {
     console.error('Brief qualification error:', error);
     res.json({ issues: [] });
+  }
+});
+
+/**
+ * Transforme une description libre en brief structuré pré-rempli.
+ * L'échec est explicite : sans extraction, l'interface bascule sur la saisie manuelle.
+ */
+app.post('/api/parse-brief', async (req, res) => {
+  try {
+    const result = await parseBriefDescription(req.body?.description);
+    if (!result.ok) {
+      console.warn('Brief parsing unavailable:', result.reason);
+      return res.json({ ok: false, reason: result.userMessage });
+    }
+    res.json({ ok: true, brief: result.brief, fieldConfidence: result.fieldConfidence });
+  } catch (error) {
+    console.error('Brief parsing error:', error);
+    res.json({ ok: false, reason: 'Génération indisponible pour le moment.' });
   }
 });
 

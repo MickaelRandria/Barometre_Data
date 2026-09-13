@@ -6,6 +6,9 @@ import SignauxContextuels from './SignauxContextuels.jsx';
 import AdminDashboard from './AdminDashboard.jsx';
 import AdminAccess from './AdminAccess.jsx';
 import { CITIES } from './data/cities.js';
+// Listes partagées avec l'extraction Ministral : le modèle doit proposer
+// exactement les valeurs que ce formulaire accepte, sans jamais diverger.
+import { TONES, AUDIENCES, CHANNELS, OBJECTIVES, PRESSURES } from '../../shared/briefOptions.js';
 import { createPortal } from 'react-dom';
 import { AxisMetrics, SectorIndicator, Sparkline, SourceLinks, articleNameFromUrl, formatViews, getRecentViews } from './TrendEvidence.jsx';
 
@@ -93,34 +96,6 @@ const Icon = {
     </svg>
   ),
 };
-
-const TONES = ['chaleureux', 'dynamique', 'urgent', 'inspirationnel', 'rassurant', 'promotionnel', 'sobre'];
-const AUDIENCES = [
-  { id: 'clients-actifs', label: 'Clients actifs' },
-  { id: 'clients-inactifs', label: 'Clients inactifs' },
-  { id: 'paniers-abandonnes', label: 'Paniers abandonnés' },
-  { id: 'top-clients', label: 'Top clients (VIP)' },
-  { id: 'prospects', label: 'Prospects' },
-  { id: 'clients-chauds', label: 'Clients chauds' },
-];
-const CHANNELS = [
-  { id: 'email', label: 'Email' },
-  { id: 'sms', label: 'SMS' },
-  { id: 'push', label: 'Push notification' },
-  { id: 'paid-social', label: 'Social Ads' },
-  { id: 'homepage', label: 'Homepage' },
-];
-const OBJECTIVES = [
-  { id: 'conversion', label: 'Conversion' },
-  { id: 'engagement', label: 'Engagement' },
-  { id: 'trafic', label: 'Trafic' },
-  { id: 'notoriete', label: 'Notoriété' },
-];
-const PRESSURES = [
-  { id: 'faible', label: 'Faible' },
-  { id: 'moyen', label: 'Modérée' },
-  { id: 'fort', label: 'Forte' },
-];
 
 /* ---------- SCROLL PROGRESS ---------- */
 function useScrollProgress() {
@@ -330,6 +305,11 @@ function BriefQualification({ issues, onFocusField, onDismiss, onSubmitAnyway })
 
 function BriefForm({ brief, onChange, onSubmit, loading, error, qualifying, qualIssues = [], onDismissQualification, onSubmitAnyway }) {
   const [geoError, setGeoError] = useState(null);
+  const [description, setDescription] = useState('');
+  const [parsing, setParsing] = useState(false);
+  const [parseError, setParseError] = useState(null);
+  // Champs déduits par l'agent plutôt que dits explicitement : signalés, jamais figés.
+  const [lowConfidenceFields, setLowConfidenceFields] = useState([]);
   // Permet au bouton « Préciser » de renvoyer l'utilisateur sur le champ visé.
   const fieldRefs = useRef({});
 
@@ -339,6 +319,49 @@ function BriefForm({ brief, onChange, onSubmit, loading, error, qualifying, qual
     node.scrollIntoView({ behavior: 'smooth', block: 'center' });
     node.focus({ preventScroll: true });
   }, []);
+
+  /**
+   * Pré-remplit le formulaire depuis la description libre. En cas d'échec, on le
+   * dit sans dramatiser : le formulaire détaillé reste utilisable tel quel.
+   */
+  const generateBrief = async () => {
+    if (!description.trim() || parsing) return;
+    setParsing(true);
+    setParseError(null);
+    try {
+      const response = await fetch('/api/parse-brief', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description }),
+      });
+      const data = await response.json();
+      if (!data?.ok || !data.brief) {
+        setParseError(data?.reason || 'Génération indisponible. Renseignez les champs ci-dessous.');
+        return;
+      }
+      // Seuls les champs renvoyés sont écrasés : ville, coordonnées et articles
+      // personnalisés déjà choisis par l'utilisateur ne bougent pas.
+      for (const [field, value] of Object.entries(data.brief)) onChange(field, value);
+      setLowConfidenceFields(
+        Object.entries(data.fieldConfidence ?? {})
+          .filter(([, level]) => level === 'low')
+          .map(([field]) => field),
+      );
+    } catch {
+      setParseError('Génération indisponible. Renseignez les champs ci-dessous.');
+    } finally {
+      setParsing(false);
+    }
+  };
+
+  const isSuggested = (field) => lowConfidenceFields.includes(field);
+  // Un champ retouché à la main n'est plus une suggestion.
+  const handleFieldChange = (field, value) => {
+    if (lowConfidenceFields.includes(field)) {
+      setLowConfidenceFields((fields) => fields.filter((item) => item !== field));
+    }
+    onChange(field, value);
+  };
 
   const [customizerOpen, setCustomizerOpen] = useState(false);
   const [automaticArticles, setAutomaticArticles] = useState([]);
@@ -457,38 +480,65 @@ function BriefForm({ brief, onChange, onSubmit, loading, error, qualifying, qual
         onDismiss={onDismissQualification}
         onSubmitAnyway={onSubmitAnyway}
       />
+      <div className="brief-express">
+        <div className="brief-express-head">
+          <span className="brief-express-title">Générer le brief depuis une phrase</span>
+          <span className="brief-express-hint">Le plus rapide — les champs restent modifiables ensuite.</span>
+        </div>
+        <textarea
+          className="brief-express-input"
+          value={description}
+          onChange={(event) => setDescription(event.target.value)}
+          rows={2}
+          placeholder="Décrivez votre campagne en une phrase… (ex : je veux lancer une campagne email sur nos écharpes en laine pour la rentrée)"
+          aria-label="Description libre de la campagne"
+        />
+        <div className="brief-express-actions">
+          <button
+            type="button"
+            className="pill-btn neon"
+            onClick={generateBrief}
+            disabled={parsing || !description.trim()}
+          >
+            {parsing ? 'Analyse de votre description…' : 'Générer le brief'}
+          </button>
+          {parseError
+            ? <span className="brief-express-fallback">{parseError}</span>
+            : <span className="brief-express-note">Ou renseignez directement les champs ci-dessous.</span>}
+        </div>
+      </div>
       <form className="brief-grid" onSubmit={onSubmit}>
-        <Field label="Produit / Univers">
+        <Field label="Produit / Univers" suggested={isSuggested('product')}>
           <input
             ref={(node) => { fieldRefs.current.product = node; }}
             type="text"
             value={brief.product}
-            onChange={(e) => onChange('product', e.target.value)}
+            onChange={(e) => handleFieldChange('product', e.target.value)}
             placeholder="Collection été, bougie parfumée…"
           />
         </Field>
-        <Field label="Canal">
-          <select ref={(node) => { fieldRefs.current.channel = node; }} value={brief.channel} onChange={(e) => onChange('channel', e.target.value)}>
+        <Field label="Canal" suggested={isSuggested('channel')}>
+          <select ref={(node) => { fieldRefs.current.channel = node; }} value={brief.channel} onChange={(e) => handleFieldChange('channel', e.target.value)}>
             {CHANNELS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
           </select>
         </Field>
-        <Field label="Audience">
-          <select ref={(node) => { fieldRefs.current.audience = node; }} value={brief.audience} onChange={(e) => onChange('audience', e.target.value)}>
+        <Field label="Audience" suggested={isSuggested('audience')}>
+          <select ref={(node) => { fieldRefs.current.audience = node; }} value={brief.audience} onChange={(e) => handleFieldChange('audience', e.target.value)}>
             {AUDIENCES.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
           </select>
         </Field>
-        <Field label="Objectif">
-          <select ref={(node) => { fieldRefs.current.objective = node; }} value={brief.objective} onChange={(e) => onChange('objective', e.target.value)}>
+        <Field label="Objectif" suggested={isSuggested('objective')}>
+          <select ref={(node) => { fieldRefs.current.objective = node; }} value={brief.objective} onChange={(e) => handleFieldChange('objective', e.target.value)}>
             {OBJECTIVES.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
           </select>
         </Field>
-        <Field label="Ton">
-          <select ref={(node) => { fieldRefs.current.tone = node; }} value={brief.tone} onChange={(e) => onChange('tone', e.target.value)}>
+        <Field label="Ton" suggested={isSuggested('tone')}>
+          <select ref={(node) => { fieldRefs.current.tone = node; }} value={brief.tone} onChange={(e) => handleFieldChange('tone', e.target.value)}>
             {TONES.map((t) => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
           </select>
         </Field>
-        <Field label="Pression commerciale">
-          <select ref={(node) => { fieldRefs.current.pressure = node; }} value={brief.pressure} onChange={(e) => onChange('pressure', e.target.value)}>
+        <Field label="Pression commerciale" suggested={isSuggested('pressure')}>
+          <select ref={(node) => { fieldRefs.current.pressure = node; }} value={brief.pressure} onChange={(e) => handleFieldChange('pressure', e.target.value)}>
             {PRESSURES.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
           </select>
         </Field>
@@ -512,11 +562,11 @@ function BriefForm({ brief, onChange, onSubmit, loading, error, qualifying, qual
           </div>
           {geoError && <span className="brief-geo-error">{geoError}</span>}
         </Field>
-        <Field label="Message principal" full>
+        <Field label="Message principal" full suggested={isSuggested('message')}>
           <textarea
             ref={(node) => { fieldRefs.current.message = node; }}
             value={brief.message}
-            onChange={(e) => onChange('message', e.target.value)}
+            onChange={(e) => handleFieldChange('message', e.target.value)}
             rows={3}
             placeholder="Votre accroche marketing…"
           />
@@ -585,10 +635,17 @@ function BriefForm({ brief, onChange, onSubmit, loading, error, qualifying, qual
   );
 }
 
-function Field({ label, children, full }) {
+function Field({ label, children, full, suggested }) {
   return (
-    <label className={`field ${full ? 'field-full' : ''}`}>
-      <span className="field-lab">{label}</span>
+    <label className={`field ${full ? 'field-full' : ''} ${suggested ? 'field-suggested' : ''}`}>
+      <span className="field-lab">
+        {label}
+        {suggested && (
+          <span className="field-suggested-tag" title="Valeur déduite de votre description par l’agent, pas dite explicitement. Vérifiez-la.">
+            à vérifier
+          </span>
+        )}
+      </span>
       {children}
     </label>
   );

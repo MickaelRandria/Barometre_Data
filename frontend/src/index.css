@@ -420,6 +420,24 @@ svg.radar { width: 100%; height: auto; max-height: 320px; }
 .score-review-reason { margin: 0; flex: 1 1 220px; font-size: 12.5px; line-height: 1.5; color: rgba(255,255,255,0.82); }
 .score-review-note { color: rgba(255,255,255,0.5); }
 
+/* Saisie libre : point d'entree le plus rapide, mis en avant a l'accent neon */
+.brief-express { margin-bottom: 18px; padding: 15px 16px 14px; border: 1px solid var(--neon); border-radius: var(--radius-md); background: linear-gradient(180deg, rgba(212,242,75,.14) 0%, rgba(212,242,75,.05) 100%); }
+.brief-express-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.brief-express-title { font-size: 13px; font-weight: 700; color: var(--ink); }
+.brief-express-hint { font-size: 11.5px; color: var(--muted); }
+.brief-express-input { width: 100%; padding: 11px 13px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: #fff; color: var(--ink); font: inherit; font-size: 13px; line-height: 1.5; resize: vertical; outline: none; }
+.brief-express-input:focus { border-color: var(--ink); }
+.brief-express-input::placeholder { color: var(--muted-2); }
+.brief-express-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 11px; }
+.brief-express-actions .pill-btn { min-height: 40px; }
+.brief-express-actions .pill-btn:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+.brief-express-note { font-size: 11.5px; color: var(--muted); }
+.brief-express-fallback { font-size: 11.5px; font-weight: 600; color: #7A5B12; background: rgba(242,210,122,.28); padding: 6px 10px; border-radius: 999px; }
+
+/* Champ deduit par l'agent : signale, jamais verrouille */
+.field-suggested input, .field-suggested select, .field-suggested textarea { border-color: var(--warm); background: rgba(242,210,122,.07); }
+.field-suggested-tag { margin-left: 7px; padding: 2px 7px; border-radius: 999px; background: rgba(242,210,122,.34); color: #7A5B12; font: 9.5px/1.5 "JetBrains Mono", monospace; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; cursor: help; }
+
 /* Encart de qualification du brief — suggestion de l'agent, jamais un blocage */
 .brief-qualif { margin-bottom: 18px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--line-2); overflow: hidden; }
 .brief-qualif-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 16px 11px; }
@@ -638,6 +656,8 @@ svg.radar { width: 100%; height: auto; max-height: 320px; }
   .learning-form { grid-template-columns: 1fr; }
   .brief-location-controls { grid-template-columns: 1fr; }
   .brief-geo-btn { min-height: 44px; }
+  .brief-express-actions { align-items: stretch; flex-direction: column; }
+  .brief-express-actions .pill-btn { width: 100%; justify-content: center; }
   .brief-submit-row { align-items: stretch; flex-direction: column; }
   .brief-submit-row .pill-btn { width: 100%; justify-content: center; }
   .brief-qualif-item { grid-template-columns: 1fr; grid-template-areas: "field" "question" "action"; gap: 4px; }
